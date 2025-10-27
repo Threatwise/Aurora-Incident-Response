@@ -1,13 +1,15 @@
 {
-  "name": "sod",
-  "version": "0.0.0",
+  "name": "aurora-incident-response",
+  "version": "0.6.6",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "pack:win": "rm -rf build dist && electron-packager . yeti-desktop --asar --prune --platform=win32 --arch=x64 --version=0.33.0 --icon=src/images/favicon.ico --out=build"
+    "pack:win": "rm -rf build dist && electron-packager . aurora-incident-response --asar --prune --platform=win32 --arch=x64 --icon=icon/aurora.ico --out=build",
+    "pack:mac": "electron-packager . aurora-incident-response --asar --prune --platform=darwin --arch=x64 --icon=icon/aurora.icns --out=build",
+    "pack:linux": "electron-packager . aurora-incident-response --asar --prune --platform=linux --arch=x64 --icon=icon/aurora.ico --out=build"
   },
   "dependencies": {
-    "electron": "^16.0.6",
-    "electron-packager": "^13.1.0"
+    "electron": "^38.4.0",
+    "electron-packager": "^17.1.2"
   }
 }

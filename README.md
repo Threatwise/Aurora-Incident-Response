@@ -46,13 +46,13 @@ With `nodejs` installed, checkout the [Aurora Github repository](git clone https
 <code>cd Aurora-Incident-Response/src
 </code>
 
-Now you need to install Electron using node. Currently Aurora is configured to run with `electron` 4.0.6. 
+Now you need to install Electron using node. Currently Aurora is configured to run with `electron` 38.x.
 
-<code>npm install electron@4.0.6 </code>
+<code>npm install</code>
 
 You can now run the code by invoking:
 
-<code>node_modules/.bin/electron .</code>
+<code>npm start</code>
 
 That's fast, isn't it?
 
@@ -70,15 +70,15 @@ To build and cross build you I use `electron-packager`.
 
 Build for Windows:
 
-<code>./node_modules/.bin/electron-packager . Aurora --asar --prune --platform=win32 --electron-version=4.0.6 --arch=x64 --icon=icon/aurora.ico --out=release-builds --ignore "node_modules/\.bin" </code>
+<code>npm run pack:win</code>
 
 Build for MacOS:
 
-<code>./node_modules/.bin/electron-packager ./src Aurora --overwrite --platform=darwin --arch=x64 --icon=icon/aurora.icns --prune=true --out=release-builds </code>
+<code>npm run pack:mac</code>
 
 Build for Linux:
 
-<code>./node_modules/.bin/electron-packager . Aurora --asar --prune --platform=linux --electron-version=4.0.6 --arch=x64 --icon=icon/aurora.ico --out=release-builds --ignore "node_modules/\.bin" </code>
+<code>npm run pack:linux</code>
 
 ### 2.4 Sourcecode Navigator
 

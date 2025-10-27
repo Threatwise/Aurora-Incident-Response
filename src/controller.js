@@ -5,8 +5,10 @@
 // All events for gui components ("clicks, etc") will be hooked up here
 
 
-registerComponents = function(){
+function registerComponents(){
 
+    // local vars used across handlers
+    let currentgrid;
 
     //////////////////
     // Main Toolbar //
@@ -555,22 +557,21 @@ registerComponents = function(){
                 w2ui.grd_exfiltration.save()
                 source = w2ui.grd_exfiltration.get(event.recid).stagingsystem
                 destination = w2ui.grd_exfiltration.get(event.recid).exfil_to
-                filename = w2ui.grd_exfiltration.get(event.recid).filename
-                time = filename = w2ui.grd_exfiltration.get(event.recid).exfiltime
-                exnotes = filename = w2ui.grd_exfiltration.get(event.recid).exfiltime
+        const filename = w2ui.grd_exfiltration.get(event.recid).filename
+        const time = w2ui.grd_exfiltration.get(event.recid).exfiltime
+        const exnotes = w2ui.grd_exfiltration.get(event.recid).contents || ''
 
+        const summary = filename + " exfiltrated."
 
-                summary = filename + " exfiltrated."
-
-                w2ui.grd_timeline.add({recid: getNextRECID(w2ui.grd_timeline),
-                        event_host: source,
-                        event_source_host: destination,
-                        event_data: summary,
-                        followup: true,
-                        event_type: "Exfil",
-                        notes: exnotes,
-                        direction:"",
-                        date_time: time});
+        w2ui.grd_timeline.add({recid: getNextRECID(w2ui.grd_timeline),
+            event_host: source,
+            event_source_host: destination,
+            event_data: summary,
+            followup: true,
+            event_type: "Exfil",
+            notes: exnotes,
+            direction:"",
+            date_time: time});
 
                 w2alert("Exfiltration has been added to timeline.")
                 break;

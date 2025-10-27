@@ -7,7 +7,7 @@ const { dialog } = require('electron')
 let win
 
 global.Dirty = {
-    is_dirty: 'true'
+    is_dirty: true
 }
 
 function createWindow () {
