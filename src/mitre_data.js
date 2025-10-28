@@ -3,9 +3,6 @@
  * Falls back to a concise default set if the dataset cannot be read.
  */
 var mitre_attack_techniques = (function buildMitreTechniqueList() {
-    const path = require('path')
-    const fs = require('fs')
-
     const fallback = [
         { id: 'T1003', text: 'Credential Dumping' },
         { id: 'T1021', text: 'Remote Services' },
@@ -17,6 +14,9 @@ var mitre_attack_techniques = (function buildMitreTechniqueList() {
     ]
 
     try {
+        const path = require('path');
+        const fs = require('fs');
+
         const datasetPath = path.join(__dirname, '..', 'vendor', 'mitre-cti', 'enterprise-attack', 'enterprise-attack.json')
         if (!fs.existsSync(datasetPath)) {
             console.warn('Aurora ATT&CK catalogue: dataset not found at', datasetPath)

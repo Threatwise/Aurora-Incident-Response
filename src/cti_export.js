@@ -7,7 +7,7 @@
  * Generate a UUID for STIX objects
  */
 function generateUUID() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replaceAll(/[xy]/g, c => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
         const r = Math.trunc(Math.random() * 16);
         const v = c === 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
@@ -104,8 +104,8 @@ function createNetworkIndicator(indicator) {
 
     const labels = [];
     if (indicator.pyramid_pain && case_data.pyramid_levels) {
-        const level = case_data.pyramid_levels.find(l => l.id == indicator.pyramid_pain);
-        if (level) labels.push(`pyramid:${level.text.toLowerCase().replaceAll(/\s+/g, '-')}`);
+        const level = case_data.pyramid_levels.find(l => l.id == indicator.pyramid_pain || l.text === indicator.pyramid_pain);
+        if (level) labels.push(`pyramid:${level.text.toLowerCase().replace(/\s+/g, '-')}`);
     }
 
     return {
@@ -241,11 +241,15 @@ function exportCTIReport() {
  */
 function exportKillChain() {
     syncAllChanges();
-    
+
+    const stages = (typeof ensureKillChainStages === 'function')
+        ? ensureKillChainStages()
+        : (case_data.kill_chain && Array.isArray(case_data.kill_chain.stages) ? case_data.kill_chain.stages : []);
+
     const killChainData = {
         case_id: case_data.case_id || "Unknown",
-        mode: case_data.kill_chain.mode,
-        stages: case_data.kill_chain.stages,
+        mode: case_data.kill_chain?.mode || 'linked',
+        stages: stages,
         coverage_analysis: analyzeKillChain(),
         exported_at: new Date().toISOString()
     };

@@ -44,6 +44,20 @@ function syncAllChanges(){
     case_data.investigators = w2ui.grd_investigators.records
     w2ui.grd_evidence.save()
     case_data.evidence = w2ui.grd_evidence.records
+    w2ui.grd_email.save()
+    case_data.email = w2ui.grd_email.records
+    w2ui.grd_files.save()
+    case_data.files = w2ui.grd_files.records
+    w2ui.grd_processes.save()
+    case_data.processes = w2ui.grd_processes.records
+    w2ui.grd_web_activity.save()
+    case_data.web_activity = w2ui.grd_web_activity.records
+    w2ui.grd_persistence.save()
+    case_data.persistence = w2ui.grd_persistence.records
+    w2ui.grd_threat_intel.save()
+    case_data.threat_intel = w2ui.grd_threat_intel.records
+    w2ui.grd_campaigns.save()
+    case_data.campaigns = w2ui.grd_campaigns.records
 
     // Data from the case Details popup is stored right to the storage object. So no need to update it here.
 }
@@ -106,6 +120,20 @@ function updateSODFile() {     const fs = require('node:fs');
     w2ui.grd_investigators.refresh()
     w2ui.grd_casenotes.records = case_data.casenotes
     w2ui.grd_casenotes.refresh()
+    w2ui.grd_email.records = case_data.email || []
+    w2ui.grd_email.refresh()
+    w2ui.grd_files.records = case_data.files || []
+    w2ui.grd_files.refresh()
+    w2ui.grd_processes.records = case_data.processes || []
+    w2ui.grd_processes.refresh()
+    w2ui.grd_web_activity.records = case_data.web_activity || []
+    w2ui.grd_web_activity.refresh()
+    w2ui.grd_persistence.records = case_data.persistence || []
+    w2ui.grd_persistence.refresh()
+    w2ui.grd_threat_intel.records = case_data.threat_intel || []
+    w2ui.grd_threat_intel.refresh()
+    w2ui.grd_campaigns.records = case_data.campaigns || []
+    w2ui.grd_campaigns.refresh()
 
     if(lockedByMe) { // can only update editables when the fields are editable
 
@@ -163,6 +191,20 @@ function newSOD() {
             w2ui.grd_investigators.render()
             w2ui.grd_evidence.clear()
             w2ui.grd_evidence.render()
+            w2ui.grd_email.clear()
+            w2ui.grd_email.render()
+            w2ui.grd_files.clear()
+            w2ui.grd_files.render()
+            w2ui.grd_processes.clear()
+            w2ui.grd_processes.render()
+            w2ui.grd_web_activity.clear()
+            w2ui.grd_web_activity.render()
+            w2ui.grd_persistence.clear()
+            w2ui.grd_persistence.render()
+            w2ui.grd_threat_intel.clear()
+            w2ui.grd_threat_intel.render()
+            w2ui.grd_campaigns.clear()
+            w2ui.grd_campaigns.render()
 
             currentfile = "";
             deactivateReadOnly()
@@ -257,7 +299,12 @@ function updateVersion(current_version){
         _upgradeTo9();
     }
 
-    case_data.storage_format_version = 9;
+    // 9->10: Add new investigation grids
+    if (current_version < 10) {
+        _upgradeTo10();
+    }
+
+    case_data.storage_format_version = 10;
 }
 
     function _upgradeTo6() {
@@ -356,13 +403,13 @@ function _upgradeTo9() {
     case_data.kill_chain = {
         mode: "linked",
         stages: [
-            { name: "Reconnaissance", techniques: [], indicators: [], notes: "", timeline_refs: [], confidence: "Unknown" },
-            { name: "Weaponization", techniques: [], indicators: [], notes: "", timeline_refs: [], confidence: "Unknown" },
-            { name: "Delivery", techniques: [], indicators: [], notes: "", timeline_refs: [], confidence: "Unknown" },
-            { name: "Exploitation", techniques: [], indicators: [], notes: "", timeline_refs: [], confidence: "Unknown" },
-            { name: "Installation", techniques: [], indicators: [], notes: "", timeline_refs: [], confidence: "Unknown" },
-            { name: "Command & Control", techniques: [], indicators: [], notes: "", timeline_refs: [], confidence: "Unknown" },
-            { name: "Actions on Objectives", techniques: [], indicators: [], notes: "", timeline_refs: [], confidence: "Unknown" }
+            { name: "Recon", techniques: [], indicators: [], notes: "", timeline_refs: [], confidence: 0 },
+            { name: "Weaponization", techniques: [], indicators: [], notes: "", timeline_refs: [], confidence: 0 },
+            { name: "Delivery", techniques: [], indicators: [], notes: "", timeline_refs: [], confidence: 0 },
+            { name: "Exploitation", techniques: [], indicators: [], notes: "", timeline_refs: [], confidence: 0 },
+            { name: "Installation", techniques: [], indicators: [], notes: "", timeline_refs: [], confidence: 0 },
+            { name: "C2", techniques: [], indicators: [], notes: "", timeline_refs: [], confidence: 0 },
+            { name: "Actions on Obj.", techniques: [], indicators: [], notes: "", timeline_refs: [], confidence: 0 }
         ]
     };
 
@@ -381,6 +428,17 @@ function _upgradeTo9() {
         tactics_observed: [],
         matrices_affected: []
     };
+}
+
+function _upgradeTo10() {
+    // Add new investigation grid data arrays
+    case_data.email = [];
+    case_data.files = [];
+    case_data.processes = [];
+    case_data.web_activity = [];
+    case_data.persistence = [];
+    case_data.threat_intel = [];
+    case_data.campaigns = [];
 }
 
 
@@ -477,6 +535,20 @@ function openSODFile() {
             w2ui.grd_investigators.refresh()
             w2ui.grd_casenotes.records = case_data.casenotes
             w2ui.grd_casenotes.refresh()
+            w2ui.grd_email.records = case_data.email || []
+            w2ui.grd_email.refresh()
+            w2ui.grd_files.records = case_data.files || []
+            w2ui.grd_files.refresh()
+            w2ui.grd_processes.records = case_data.processes || []
+            w2ui.grd_processes.refresh()
+            w2ui.grd_web_activity.records = case_data.web_activity || []
+            w2ui.grd_web_activity.refresh()
+            w2ui.grd_persistence.records = case_data.persistence || []
+            w2ui.grd_persistence.refresh()
+            w2ui.grd_threat_intel.records = case_data.threat_intel || []
+            w2ui.grd_threat_intel.refresh()
+            w2ui.grd_campaigns.records = case_data.campaigns || []
+            w2ui.grd_campaigns.refresh()
 
             w2ui['grd_timeline'].getColumn('owner').editable.items = case_data.investigators
             w2ui.grd_timeline.getColumn('event_host').editable.items = case_data.systems
@@ -797,8 +869,13 @@ function _countPyramidFrom(items, getPid, distribution, pyramid_levels) {
     let added = 0;
     for (const it of items) {
         const pid = getPid(it);
-        if (!pid || !pyramid_levels) continue;
-        const level = pyramid_levels.find(l => l.id == pid);
+        if (pid === undefined || pid === null || !pyramid_levels) continue;
+        let level = null;
+        if (typeof pid === 'string') {
+            level = pyramid_levels.find(l => l.text === pid || String(l.id) === pid);
+        } else {
+            level = pyramid_levels.find(l => l.id == pid);
+        }
         if (level && distribution[level.text]) {
             distribution[level.text].count++;
             added++;
@@ -835,40 +912,51 @@ function _processMitreEvent(event, techniques) {
 
 function _classifyTimelinePyramid(pyramid) {
     if (!case_data.timeline) return;
+    const ttpLabel = _pyramidLevelText(6);
     for (const event of case_data.timeline) {
         if (event.mitre_attack) {
             pyramid.ttps.push({ type: 'timeline', recid: event.recid, technique: event.mitre_attack });
-            event.pyramid_pain = 6; // TTPs
+            event.pyramid_pain = ttpLabel; // TTPs
         }
     }
 }
 
 function _classifyMalwarePyramid(pyramid) {
     if (!case_data.malware) return;
+    const hashLabel = _pyramidLevelText(1);
+    const toolLabel = _pyramidLevelText(5);
     for (const malware of case_data.malware) {
         if (malware.md5) {
             pyramid.hash_values.push({ type: 'hash', recid: malware.recid, value: malware.md5 });
-            malware.pyramid_pain = 1; // Hash
+            malware.pyramid_pain = hashLabel; // Hash
         }
         if (malware.text) {
             pyramid.tools.push({ type: 'tool', recid: malware.recid, name: malware.text });
-            if (malware.pyramid_pain === 1) malware.pyramid_pain = 5;
+            if (malware.pyramid_pain === hashLabel) malware.pyramid_pain = toolLabel;
         }
     }
 }
 
 function _classifyNetworkPyramid(pyramid) {
     if (!case_data.network_indicators) return;
+    const ipLabel = _pyramidLevelText(2);
+    const domainLabel = _pyramidLevelText(3);
     for (const indicator of case_data.network_indicators) {
         if (indicator.ip) {
             pyramid.ip_addresses.push({ type: 'ip', recid: indicator.recid, value: indicator.ip });
-            indicator.pyramid_pain = 2; // IP
+            indicator.pyramid_pain = ipLabel; // IP
         }
         if (indicator.domainname) {
             pyramid.domain_names.push({ type: 'domain', recid: indicator.recid, value: indicator.domainname });
-            indicator.pyramid_pain = 3;
+            indicator.pyramid_pain = domainLabel;
         }
     }
+}
+
+function _pyramidLevelText(id) {
+    if (!case_data.pyramid_levels) return id;
+    const level = case_data.pyramid_levels.find(l => l.id === id);
+    return level ? level.text : id;
 }
 
 /**

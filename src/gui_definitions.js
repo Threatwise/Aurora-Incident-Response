@@ -1,12 +1,11 @@
 
-//TODO: Has to go just to keep it running during the transition
 // widget configuration
-var pstyle = 'border: 1px solid #dfdfdf; padding: 5px;';
+const pstyle = 'border: 1px solid #dfdfdf; padding: 5px;';
 
-var case_data = data_template
+// case_data is already declared in data_template.js, so we don't redeclare it here
 
 
-var config = {
+const config = {
 
     ///////////////////
     ///// Layouts /////
@@ -18,7 +17,7 @@ var config = {
         panels: [
             { type: 'top', size: 50, style:pstyle,  },
             { type: 'left', size: 200, resizable: true, minSize: 120 },
-            { type: 'main', minSize: 550, overflow: 'hidden' }
+            { type: 'main', minSize: 550, overflow: 'auto' }
         ]
     },
     lateral_layout: {
@@ -137,11 +136,13 @@ var config = {
         nodes: [
             { id: 'cti_analytics', text: 'CTI Analytics', group: true, expanded: true, nodes: [
                     { id: 'killchain_view', text: 'Kill Chain Coverage', icon: 'fa fa-chain'},
-                    { id: 'pyramid_view', text: 'Pyramid of Pain', icon: 'fa fa-triangle-exclamation'},
+                    { id: 'pyramid_view', text: 'Pyramid of Pain', icon: 'fa fa-warning'},
                     { id: 'mitre_heatmap', text: 'MITRE Heatmap', icon: 'fa fa-fire'},
                     { id: 'killchain_builder', text: 'Kill Chain Builder', icon: 'fa fa-cogs'},
                     { id: 'diamond_model', text: 'Diamond Model', icon: 'fa fa-diamond'},
-                    { id: 'cti_mode', text: 'CTI Mode', icon: 'fa fa-crosshairs'}
+                    { id: 'cti_mode', text: 'CTI Mode', icon: 'fa fa-crosshairs'},
+                    { id: 'campaigns', text: 'Campaign Tracking', icon: 'fa fa-flag'},
+                    { id: 'ioc_relationships', text: 'IOC Relationships', icon: 'fa fa-share-alt'}
                 ]},
             { id: 'investigation', text: 'Investigation', group: true, expanded: true, nodes: [
                     { id: 'timeline', text: 'Timeline', icon: 'fa fa-clock-o'},
@@ -149,7 +150,13 @@ var config = {
                     { id: 'malware', text: 'Malware/Tools', icon: 'fa fa-bug'},
                     { id: 'accounts', text: 'Compromised Accounts', icon: 'fa fa-users'},
                     { id: 'network', text: 'Network Indicators', icon: 'fa fa-sitemap'},
+                    { id: 'email', text: 'Email/Phishing', icon: 'fa fa-envelope'},
+                    { id: 'files', text: 'Files & Registry', icon: 'fa fa-file-text-o'},
+                    { id: 'processes', text: 'Process Execution', icon: 'fa fa-terminal'},
+                    { id: 'web_activity', text: 'Web Activity/URLs', icon: 'fa fa-link'},
+                    { id: 'persistence', text: 'Persistence Mechanisms', icon: 'fa fa-anchor'},
                     { id: 'exfiltration', text: 'Exfiltration', icon: 'fa fa-tint'},
+                    { id: 'threat_intel', text: 'Threat Intelligence', icon: 'fa fa-shield'},
                     { id: 'osint', text: 'OSInt', icon: 'fa fa-globe'},
                     { id: 'systems', text: 'Systems', icon: 'fa fa-desktop'},
                 ]},
@@ -191,7 +198,7 @@ var config = {
             { field: 'event_source_host', caption: 'Source System', type: 'text'},
             { field: 'killchain', caption: 'Killchain', type: 'list', options:{items:case_data.killchain}},
             { field: 'mitre_attack', caption: 'MITRE ATT&CK', type: 'list', options:{items:case_data.attack_techniques}},
-            { field: 'pyramid_pain', caption: 'Pyramid', type: 'list', options:{items:case_data.pyramid_levels.map(p => p.name)}},
+            { field: 'pyramid_pain', caption: 'Pyramid', type: 'list', options:{items:case_data.pyramid_levels.map(p => p.text)}},
             { field: 'notes', caption: 'Notes', type: 'text' },
             { field: 'attribution', caption: 'Attribution', type: 'text' }
         ],
@@ -207,12 +214,12 @@ var config = {
             { field: 'mitre_attack',sortable: true, caption: 'MITRE ATT&CK', size: '160px',
                 editable: { type: 'list', items: case_data.attack_techniques, showAll: true ,  match: 'contains' }},
             { field: 'pyramid_pain', sortable: true, caption: 'Pyramid', size: '90px',
-                editable: { type: 'list', items: case_data.pyramid_levels.map(p => p.name), showAll: true },
+                editable: { type: 'list', items: case_data.pyramid_levels.map(p => p.text), showAll: true },
                 render: function(record) {
                     if (!record.pyramid_pain) return '';
-                    const level = case_data.pyramid_levels.find(p => p.name === record.pyramid_pain);
+                    const level = case_data.pyramid_levels.find(p => p.text === record.pyramid_pain);
                     if (!level) return record.pyramid_pain;
-                    return '<div style="background-color: ' + level.color + '; color: #000; padding: 2px 4px; border-radius: 3px; text-align: center; font-weight: bold;">' + level.name + '</div>';
+                    return '<div style="background-color: ' + level.color + '; color: #000; padding: 2px 4px; border-radius: 3px; text-align: center; font-weight: bold;">' + level.text + '</div>';
                 }
             },
             { field: 'event_data', caption: 'Event', size: '100%', info: true, editable: { type: 'text', min: 10, max: 500 }},
@@ -316,7 +323,7 @@ var config = {
             { field: 'path_on_disk',  caption: 'Path', type: 'text' },
             { field: 'hostname', caption: 'System', type: 'text' },
             { field: 'md5', caption: 'Hash', type: 'text'},
-            { field: 'pyramid_pain', caption: 'Pyramid', type: 'list', options:{items:case_data.pyramid_levels.map(p => p.name)}},
+            { field: 'pyramid_pain', caption: 'Pyramid', type: 'list', options:{items:case_data.pyramid_levels.map(p => p.text)}},
             { field: 'notes', caption: 'Notes', type: 'text' },
             { field: 'attribution',  caption: 'Attribution', type: 'text' },
         ],
@@ -350,12 +357,12 @@ var config = {
                 }
             },
             { field: 'pyramid_pain', sortable: true, caption: 'Pyramid', size: '90px',
-                editable: { type: 'list', items: case_data.pyramid_levels.map(p => p.name), showAll: true },
+                editable: { type: 'list', items: case_data.pyramid_levels.map(p => p.text), showAll: true },
                 render: function(record) {
                     if (!record.pyramid_pain) return '';
-                    const level = case_data.pyramid_levels.find(p => p.name === record.pyramid_pain);
+                    const level = case_data.pyramid_levels.find(p => p.text === record.pyramid_pain);
                     if (!level) return record.pyramid_pain;
-                    return '<div style="background-color: ' + level.color + '; color: #000; padding: 2px 4px; border-radius: 3px; text-align: center; font-weight: bold;">' + level.name + '</div>';
+                    return '<div style="background-color: ' + level.color + '; color: #000; padding: 2px 4px; border-radius: 3px; text-align: center; font-weight: bold;">' + level.text + '</div>';
                 }
             },
             { field: 'attribution',sortable: true, caption: 'Attribution', size: '80px' , editable: { type: 'text', min: 0, max: 20 }},
@@ -442,7 +449,7 @@ var config = {
             { field: 'port', caption: 'Port', type: 'int' },
             { field: 'context', caption: 'Context', type: 'text' },
             { field: 'malware', caption: 'Malware', type: 'text' },
-            { field: 'pyramid_pain', caption: 'Pyramid', type: 'list', options:{items:case_data.pyramid_levels.map(p => p.name)}},
+            { field: 'pyramid_pain', caption: 'Pyramid', type: 'list', options:{items:case_data.pyramid_levels.map(p => p.text)}},
             { field: 'whois', caption: 'Whois', type: 'text' },
             { field: 'attribution', caption: 'Attribution', type: 'text' },
         ],
@@ -455,12 +462,12 @@ var config = {
             { field: 'last_activity',sortable: true, caption: 'Last activity' , type:'datetime', size: '80px', editable: { type: 'datetime'} },
             { field: 'malware', sortable: true,caption: 'Malware', size: '120px', type:"text", editable: { type: 'list', items: case_data.malware, showAll: true ,  match: 'contains' }},
             { field: 'pyramid_pain', sortable: true, caption: 'Pyramid', size: '90px',
-                editable: { type: 'list', items: case_data.pyramid_levels.map(p => p.name), showAll: true },
+                editable: { type: 'list', items: case_data.pyramid_levels.map(p => p.text), showAll: true },
                 render: function(record) {
                     if (!record.pyramid_pain) return '';
-                    const level = case_data.pyramid_levels.find(p => p.name === record.pyramid_pain);
+                    const level = case_data.pyramid_levels.find(p => p.text === record.pyramid_pain);
                     if (!level) return record.pyramid_pain;
-                    return '<div style="background-color: ' + level.color + '; color: #000; padding: 2px 4px; border-radius: 3px; text-align: center; font-weight: bold;">' + level.name + '</div>';
+                    return '<div style="background-color: ' + level.color + '; color: #000; padding: 2px 4px; border-radius: 3px; text-align: center; font-weight: bold;">' + level.text + '</div>';
                 }
             },
             { field: 'whois', caption: 'Whois', size: '100px', editable: { type: 'text', min: 0, max: 1500 }},
@@ -872,12 +879,12 @@ function renderSafe(record,index,col_index)
 
 //"brute-force" add safe render function to fields
 //not super elegant but should do the job
-for(let grid in config)
+for(const grid in config)
 {
-    let grd = config[grid]
+    const grd = config[grid]
     if(grd != undefined && grd.columns != undefined)
     {
-        for(let field of grd.columns)
+        for(const field of grd.columns)
         {
             if(field.render == undefined && field.editable != undefined && ["list","text"].includes(field.editable.type))
             {

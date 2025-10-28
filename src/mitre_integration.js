@@ -9,12 +9,15 @@ let mitre_techniques_cache = null;
 /**
  * Load MITRE ATT&CK data from submodule
  * Expected path: ../mitre-attack/enterprise-attack/enterprise-attack.json
+ * @returns {boolean} Success status
  */
-function loadMitreAttackData() {
-    const fs = require('fs');
-    const path = require('path');
-    
+const loadMitreAttackData = () => {
     try {
+        const fs = require('fs');
+        const path = require('path');
+
+        logger.info('Loading MITRE ATT&CK data');
+
         // Try multiple possible paths
         const possiblePaths = [
             path.join(__dirname, '../vendor/mitre-cti/enterprise-attack/enterprise-attack.json'),
@@ -22,55 +25,64 @@ function loadMitreAttackData() {
             path.join(__dirname, '../mitre-attack/enterprise-attack.json'),
             path.join(__dirname, '../../mitre-attack/enterprise-attack/enterprise-attack.json')
         ];
-        
+
         let mitrePath = null;
         for (const testPath of possiblePaths) {
             if (fs.existsSync(testPath)) {
                 mitrePath = testPath;
+                logger.debug('Found MITRE data file', { path: testPath });
                 break;
             }
         }
-        
+
         if (!mitrePath) {
-            console.warn('MITRE ATT&CK data not found. Advanced CTI features will be limited.');
+            logger.warn('MITRE ATT&CK data not found. Advanced CTI features will be limited.');
             return false;
         }
-        
+
         const rawData = fs.readFileSync(mitrePath, 'utf8');
         mitre_enterprise_data = JSON.parse(rawData);
-        
+
         // Extract version
         const versionObj = mitre_enterprise_data.objects.find(obj => obj.type === 'x-mitre-matrix');
         if (versionObj && case_data.mitre_attack) {
             case_data.mitre_attack.enterprise_version = versionObj.x_mitre_version || 'unknown';
         }
-        
-        console.log(`Loaded MITRE ATT&CK v${case_data.mitre_attack?.enterprise_version || 'unknown'}`);
-        
+
+        logger.info(`Loaded MITRE ATT&CK data successfully`, {
+            version: case_data.mitre_attack?.enterprise_version || 'unknown',
+            objects: mitre_enterprise_data.objects.length
+        });
+
         // Build technique cache
         buildTechniqueCache();
-        
+
         return true;
-    } catch (err) {
-        console.error('Failed to load MITRE ATT&CK data:', err);
+    } catch (error) {
+        logger.error('Failed to load MITRE ATT&CK data', { error: error.message, stack: error.stack });
         return false;
     }
-}
+};
 
 /**
  * Build indexed cache of techniques for fast lookup
  */
-function buildTechniqueCache() {
-    if (!mitre_enterprise_data) return;
-    
+const buildTechniqueCache = () => {
+    if (!mitre_enterprise_data) {
+        logger.warn('Cannot build technique cache: MITRE data not loaded');
+        return;
+    }
+
     mitre_techniques_cache = {};
-    
-    mitre_enterprise_data.objects
-        .filter(obj => obj.type === 'attack-pattern' && !obj.revoked && !obj.x_mitre_deprecated)
-        .forEach(technique => {
+
+    try {
+        const techniques = mitre_enterprise_data.objects
+            .filter(obj => obj.type === 'attack-pattern' && !obj.revoked && !obj.x_mitre_deprecated);
+
+        techniques.forEach(technique => {
             const extRef = technique.external_references?.find(ref => ref.source_name === 'mitre-attack');
             if (!extRef) return;
-            
+
             const id = extRef.external_id;
             mitre_techniques_cache[id] = {
                 id: id,
@@ -84,19 +96,27 @@ function buildTechniqueCache() {
                 url: extRef.url || ''
             };
         });
-    
-    console.log(`Cached ${Object.keys(mitre_techniques_cache).length} MITRE ATT&CK techniques`);
-}
+
+        logger.info(`Built MITRE ATT&CK technique cache`, {
+            techniqueCount: Object.keys(mitre_techniques_cache).length
+        });
+    } catch (error) {
+        logger.error('Failed to build technique cache', { error: error.message });
+        mitre_techniques_cache = {};
+    }
+};
 
 /**
  * Get all techniques indexed by ID
+ * @returns {Object} Techniques cache object
  */
-function getMitreTechniques() {
+const getMitreTechniques = () => {
     if (!mitre_techniques_cache) {
+        logger.debug('Technique cache not built, building now');
         buildTechniqueCache();
     }
     return mitre_techniques_cache || {};
-}
+};
 
 /**
  * Get technique details by ID

@@ -5,6 +5,23 @@ build/
 dist/
 *~
 
+# IDE folders (entire directories)
+.vscode/
+.sonarlint/
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+npm-debug.log*
+
 # Snyk Security Extension - AI Rules (auto-generated)
 .github/instructions/snyk_rules.instructions.md
 .sonarlint/connectedMode.json
