@@ -1,7 +1,7 @@
 function vt_connection_test(){
 
 
-    vtapikey = w2ui.case_form.record['vtapikey']
+    const vtapikey = w2ui.case_form.record['vtapikey']
 
     if(!vtapikey){
         alert("Please specify an API key first.")
@@ -16,7 +16,7 @@ function vt_connection_test(){
         }
     });
 
-    url = "https://www.virustotal.com/vtapi/v2/file/report?apikey="+vtapikey+"&resource=a7f7a0f74c8b48f1699858b3b6c11eda"
+    const url = "https://www.virustotal.com/vtapi/v2/file/report?apikey="+vtapikey+"&resource=a7f7a0f74c8b48f1699858b3b6c11eda"
 
     $.ajax(url,
         {
@@ -33,8 +33,7 @@ function vt_connection_test(){
                     alert("Your API key seems to be invalid.")
                     return
                 }
-                    alert("Connection Error!")
-                    return
+                alert("Connection Error!")
             }
         });
 }
@@ -43,8 +42,8 @@ function vt_connection_test(){
 
 function check_vt(grid, recid){
 
-    vtapikey = case_data.vtapikey
-    ressource = grid.get(recid).md5
+    const vtapikey = case_data.vtapikey
+    const ressource = grid.get(recid).md5
 
     if(!vtapikey){
         alert("Please specify an API key first under Case Settings.")
@@ -94,7 +93,6 @@ function check_vt(grid, recid){
                 }
 
                 alert("Connection Error!")
-                return
             }
         });
 }

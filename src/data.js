@@ -1,14 +1,14 @@
 // Keep track of the file backing the current data object
-currentfile = ""
+let currentfile = ""
 
 // Preparation to support other storage methods like webdav soon
-currentmethod = "file"
+const currentmethod = "file"
 
 // indicates if the user currently has the lock
-lockedByMe = true
+let lockedByMe = true
 
 // For new Files set case data to the default template
-case_data = data_template
+let case_data = data_template
 
 
 ///////////////////////////
@@ -33,7 +33,7 @@ function syncAllChanges(){
     w2ui.grd_exfiltration.save()
     case_data.exfiltration = w2ui.grd_exfiltration.records
     w2ui.grd_osint.save()
-    case_data.osint = w2ui.grd_systems.records
+    case_data.osint = w2ui.grd_osint.records
     w2ui.grd_systems.save()
     case_data.systems = w2ui.grd_systems.records
     w2ui.grd_actions.save()
@@ -57,11 +57,11 @@ function syncAllChanges(){
 function updateSOD(){
     switch(currentmethod){
         case "file":
-            updateSODFile()
-            break;
+            return updateSODFile()
         case "webdav":
-            updateSODWebdav()
-            break
+            return updateSODWebdav()
+        default:
+            return true
     }
 }
 
@@ -70,11 +70,10 @@ function updateSOD(){
 /**
  * Get current information from storage file and write to th ui objects.
  */
-function updateSODFile() { //TODO: need to write that in a way that it also works when you don0t have the lock. currently all calls to editable will fail when they are not set
-    var fs = require('fs');
+function updateSODFile() {     const fs = require('node:fs');
     w2utils.lock($( "#main" ),"Loading file...",true)
 
-    var filebuffer = fs.readFileSync(currentfile.toString());
+    const filebuffer = fs.readFileSync(currentfile.toString());
     case_data = JSON.parse(filebuffer);
 
     w2utils.unlock($( "#main" ))
@@ -95,7 +94,7 @@ function updateSODFile() { //TODO: need to write that in a way that it also work
     w2ui.grd_network.refresh()
     w2ui.grd_exfiltration.records = case_data.exfiltration
     w2ui.grd_exfiltration.refresh()
-    w2ui.grd_osint.records = case_data.systems
+    w2ui.grd_osint.records = case_data.osint
     w2ui.grd_osint.refresh()
     w2ui.grd_systems.records = case_data.systems
     w2ui.grd_systems.refresh()
@@ -113,6 +112,9 @@ function updateSODFile() { //TODO: need to write that in a way that it also work
         w2ui['grd_timeline'].getColumn('owner').editable.items = case_data.investigators
         w2ui.grd_timeline.getColumn('event_host').editable.items = case_data.systems
         w2ui.grd_timeline.getColumn('event_source_host').editable.items = case_data.systems
+        w2ui.grd_timeline.getColumn('direction').editable.items = case_data.direction
+        w2ui.grd_timeline.getColumn('killchain').editable.items = case_data.killchain
+        w2ui.grd_timeline.getColumn('mitre_attack').editable.items = case_data.attack_techniques
     }
 
     // Data from the case Details popup is taken right from the storage object. So no need to update it here.
@@ -122,6 +124,7 @@ function updateSODFile() { //TODO: need to write that in a way that it also work
 
 function updateSODWebdav() {
     alert("Not implemented yet.")
+    return true
 }
 
 
@@ -165,7 +168,7 @@ function newSOD() {
             deactivateReadOnly()
             stopAutoUpdate()
             startAutoSave()
-            lockstate = "&#128272; Case unlocked (edits allowed)"
+            const lockstate = "&#128272; Case unlocked (edits allowed)"
             $("#lock").html(lockstate)
             lockedByMe = true
 
@@ -180,15 +183,12 @@ function newSOD() {
  * currentmethod variable it calls the correct concrete implementation
  */
 function saveSOD(){
-    //TODO: After implementing webdav: If the file has not been saved before (filepath is empty), ask if the user wants to save to filesystem or webdav
-    switch(currentmethod){
+        switch(currentmethod){
         case "file":
             return saveSODFile()
-            break;
 
         case "webdav":
             return saveSODWebdav()
-            break
     }
 }
 
@@ -224,17 +224,7 @@ function updateVersion(current_version){
 
     // 2 -> 3
     if(current_version<3) {
-
-        case_data.direction = [{id: 1, text: "<-"}, {id: 2, text: "->"}]
-        casedata.killchain = [
-            {id: 1, text: 'Recon'},
-            {id: 2, text: 'Weaponization'},
-            {id: 3, text: 'Delivery'},
-            {id: 4, text: 'Exploitation'},
-            {id: 5, text: 'Installation'},
-            {id: 6, text: 'C2'},
-            {id: 7, text: 'Actions on Obj.'},
-        ]
+        _upgradeTo3();
     }
 
     // 3 -> 4
@@ -244,33 +234,153 @@ function updateVersion(current_version){
 
     // 4 -> 5
     if(current_version<5) {
-
-        case_data.system_types =[
-            {id:1,text:"Desktop"},
-            {id:2,text:"Server"},
-            {id:3,text:"Phone"},
-            {id:4,text:"Tablet"},
-            {id:5,text:"TV"},
-            {id:6,text:"Networking device"},
-            {id:7,text:"IoT device"},
-            {id:8,text:"Other"},
-            {id:8,text:"Attacker Infra"}
-        ]
-
-        case_data.event_types.push({id:11, text:"C2"})
-        current_version=5
+        _upgradeTo5()
     }
 
     // 5->6
     if(current_version<6) {
-        case_data.osint = []
-        current_version=6
+        _upgradeTo6()
     }
 
     case_data.storage_format_version = 6
 
     // 6->7
     case_data.storage_format_version = 7
+
+    // 7->8
+    if(current_version<8) {
+        _upgradeTo8()
+    }
+
+    // 8->9: Add CTI fields
+    if (current_version < 9) {
+        _upgradeTo9();
+    }
+
+    case_data.storage_format_version = 9;
+}
+
+    function _upgradeTo6() {
+        case_data.osint = []
+    }
+
+    function _upgradeTo8() {
+        case_data.attack_techniques = mitre_attack_techniques
+        if(Array.isArray(case_data.timeline)) {
+            for (const entry of case_data.timeline) {
+                if(entry && typeof entry.mitre_attack === 'object' && entry.mitre_attack.id) {
+                    entry.mitre_attack = entry.mitre_attack.id
+                }
+            }
+        }
+    }
+
+function _upgradeTo5() {
+    case_data.system_types =[
+        {id:1,text:"Desktop"},
+        {id:2,text:"Server"},
+        {id:3,text:"Phone"},
+        {id:4,text:"Tablet"},
+        {id:5,text:"TV"},
+        {id:6,text:"Networking device"},
+        {id:7,text:"IoT device"},
+        {id:8,text:"Other"},
+        {id:8,text:"Attacker Infra"}
+    ]
+
+    case_data.event_types.push({id:11, text:"C2"})
+    // ensure consistent version progression
+    // current_version handling is done in caller
+}
+
+function _upgradeTo3() {
+    case_data.direction = [{id: 1, text: "<-"}, {id: 2, text: "->"}]
+    case_data.killchain = [
+        {id: 1, text: 'Recon'},
+        {id: 2, text: 'Weaponization'},
+        {id: 3, text: 'Delivery'},
+        {id: 4, text: 'Exploitation'},
+        {id: 5, text: 'Installation'},
+        {id: 6, text: 'C2'},
+        {id: 7, text: 'Actions on Obj.'},
+    ]
+}
+
+function _upgradeTo9() {
+    case_data.case_type = "IR";
+    case_data.cti_mode = {
+        enabled: false,
+        primary_objective: "",
+        threat_actor: {
+            name: "",
+            aliases: [],
+            motivation: "",
+            sophistication: "",
+            first_seen: "",
+            last_seen: "",
+            associated_campaigns: [],
+            target_sectors: [],
+            target_geos: []
+        },
+        attribution: {
+            confidence: "Unknown",
+            indicators: {
+                infrastructure_overlap: 0,
+                ttp_overlap: 0,
+                target_overlap: 0,
+                temporal_correlation: 0,
+                technical_evidence: 0
+            },
+            confidence_notes: ""
+        },
+        pyramid_analysis: {
+            hash_values: [],
+            ip_addresses: [],
+            domain_names: [],
+            network_artifacts: [],
+            host_artifacts: [],
+            tools: [],
+            ttps: []
+        }
+    };
+
+    case_data.pyramid_levels = [
+        {id: 1, text: "Hash Values", color: "#90EE90"},
+        {id: 2, text: "IP Addresses", color: "#FFD700"},
+        {id: 3, text: "Domain Names", color: "#FFA500"},
+        {id: 4, text: "Network/Host Artifacts", color: "#FF6347"},
+        {id: 5, text: "Tools", color: "#DC143C"},
+        {id: 6, text: "TTPs", color: "#8B0000"}
+    ];
+
+    case_data.kill_chain = {
+        mode: "linked",
+        stages: [
+            { name: "Reconnaissance", techniques: [], indicators: [], notes: "", timeline_refs: [], confidence: "Unknown" },
+            { name: "Weaponization", techniques: [], indicators: [], notes: "", timeline_refs: [], confidence: "Unknown" },
+            { name: "Delivery", techniques: [], indicators: [], notes: "", timeline_refs: [], confidence: "Unknown" },
+            { name: "Exploitation", techniques: [], indicators: [], notes: "", timeline_refs: [], confidence: "Unknown" },
+            { name: "Installation", techniques: [], indicators: [], notes: "", timeline_refs: [], confidence: "Unknown" },
+            { name: "Command & Control", techniques: [], indicators: [], notes: "", timeline_refs: [], confidence: "Unknown" },
+            { name: "Actions on Objectives", techniques: [], indicators: [], notes: "", timeline_refs: [], confidence: "Unknown" }
+        ]
+    };
+
+    case_data.diamond_model = {
+        mode: "linked",
+        adversary: { actor_id: "", capability_level: "", intent: "", known_groups: [], timeline_refs: [] },
+        capability: { tools: [], techniques: [], exploits: [], malware_families: [], timeline_refs: [] },
+        infrastructure: { c2_servers: [], domains: [], hosting_providers: [], registrars: [], ssl_certs: [], timeline_refs: [] },
+        victim: { organization: "", sector: "", geography: "", targeted_assets: [], data_targeted: [], timeline_refs: [] },
+        meta_features: { social_political: "", technology: "", timestamp: "" }
+    };
+
+    case_data.mitre_attack = {
+        enterprise_version: "",
+        techniques_used: [],
+        tactics_observed: [],
+        matrices_affected: []
+    };
 }
 
 
@@ -305,14 +415,11 @@ function saveSODFile(){
         currentfile = selectedPaths
     }
 
-    var fs = require("fs");
+    const fs = require('node:fs');
     w2utils.lock($( "#main" ),"Saving file...",true)
-    var buffer = new Buffer.from(JSON.stringify(case_data,null, "\t"));
+    const buffer = Buffer.from(JSON.stringify(case_data,null, "\t"));
     fs.writeFileSync(currentfile.toString(), buffer);
     w2utils.unlock($( "#main" ))
-    var today = new Date();
-    var time=('0'  + today.getHours()).slice(-2)+':'+('0'  + today.getMinutes()).slice(-2)+':'+('0' + today.getSeconds()).slice(-2);
-
     w2ui.sidebar.bottomHTML = '<div id="lock" style="background-color: #eee; padding: 10px 5px; border-top: 1px solid silver">'+lockstate+'</div>'
     w2ui.sidebar.refresh()
 
@@ -332,9 +439,9 @@ function openSODFile() {
             if(path == undefined) return;
             currentfile = path
 
-            var fs = require('fs');
+            const fs = require('node:fs');
 
-            var filebuffer = fs.readFileSync(path.toString());
+            const filebuffer = fs.readFileSync(path.toString());
             case_data = JSON.parse(filebuffer);
 
             if(case_data.hasOwnProperty(storage_format_version) && case_data.storage_format_version < storage_format_version){
@@ -429,8 +536,8 @@ function lockSOD(){ // check if it is still needed - switched everything over to
 
     case_data.locked=true
     lockedByMe = true
-    var fs = require("fs");
-    var buffer = new Buffer.from(JSON.stringify(case_data,null, "\t"));
+    const fs = require('node:fs');
+    const buffer = Buffer.from(JSON.stringify(case_data,null, "\t"));
     fs.writeFileSync(currentfile.toString(), buffer);
     deactivateReadOnly()
     saveSOD()
@@ -453,11 +560,13 @@ function releaseLock(){
  * Try to obtain the lock to make the data editable
  * @param sodiscurrent - if this method is called right after a sod was loaded there is no need to load it again to check the lock state.
  */
-function requestLock() {
-    if (updateSOD() == false) {
-        activateReadOnly()
-        w2alert("You are opening a file created with a newer version of Aurora IR. Please upgrade to the newest version of Aurora IR and try again")
-        return
+function requestLock(sodiscurrent) {
+    if (sodiscurrent !== true) {
+        if (updateSOD() === false) {
+            activateReadOnly()
+            w2alert("You are opening a file created with a newer version of Aurora IR. Please upgrade to the newest version of Aurora IR and try again")
+            return
+        }
     }
 
     if(case_data.locked) {
@@ -469,7 +578,7 @@ function requestLock() {
     startAutoSave()
     deactivateReadOnly()
 
-    lockstate = "&#128272; Case unlocked (edits allowed)"
+    let lockstate = "&#128272; Case unlocked (edits allowed)"
 
     $( "#lock" ).html(lockstate)
     lockedByMe = true
@@ -487,7 +596,7 @@ function forceUnLock() {
             return
         }
         else {
-            if (updateSOD() == false) {
+            if (updateSOD() === false) {
                 activateReadOnly()
                 w2alert("You are opening a file created with a newer version of Aurora IR. Please upgrade to the newest version of Aurora IR and try again.")
                 return
@@ -496,16 +605,16 @@ function forceUnLock() {
             stopAutoUpdate()
             startAutoSave()
             deactivateReadOnly()
-            lockstate = "&#128272; Case unlocked (edits allowed)"
+            const lockstate = "&#128272; Case unlocked (edits allowed)"
             $( "#lock" ).html(lockstate)
             lockedByMe = true
             case_data.locked=true
 
             // Deal with save button
-            w2ui['toolbar'].ensable('file:save_sod');
+            w2ui['toolbar'].enable('file:save_sod');
 
             // Deal with locks
-            w2ui['toolbar'].ensable('file:release_lock');
+            w2ui['toolbar'].enable('file:release_lock');
             w2ui['toolbar'].disable('file:request_lock');
             w2ui['toolbar'].disable('file:force_unlock');
             saveSOD()
@@ -534,13 +643,11 @@ function getNextRECID(grid){
         return 1
     }
 
-    var highest = 1;
+    let highest = 1;
 
-    for(var i=0; i< grid.records.length;i++){
-
-        var recid = grid.records[i].recid
-        if(recid>highest) highest=recid
-
+    for (const rec of grid.records) {
+        const recid = rec.recid
+        if (recid > highest) highest = recid
     }
     // return an id one higher then the existing highest
     return highest+1
@@ -552,8 +659,8 @@ function getNextRECID(grid){
 ///// Timer Control /////
 /////////////////////////
 
-autosave_interval = null   // for write mode
-autoupdate_interval = null // for readonly mode
+let autosave_interval = null   // for write mode
+let autoupdate_interval = null // for readonly mode
 
 
 /**
@@ -589,50 +696,52 @@ function stopAutoUpdate(){
 /////////////////////////////
 
 function updateSystems(event){
-    old_system = event.value_original
-    new_system = event.value_new
+    const old_system = event.value_original
+    const new_system = event.value_new
 
     if(old_system=="" || old_system==null) return; // don't override all fields with new values when the old value was an empty field
+    // delegate work to helpers to keep complexity down
+    _updateSystemsTimeline(old_system, new_system);
+    _updateSystemsInvestigated(old_system, new_system);
+    _updateSystemsMalware(old_system, new_system);
+    _updateSystemsExfil(old_system, new_system);
+}
 
-    //check timeline
-    records = w2ui.grd_timeline.records
-    for(var i=0;i<records.length;i++){
-        system1 = records[i].event_host
-        system2 = records[i].event_source_host
-
-        if(system1 == old_system ) records[i].event_host=new_system
-        if(system2 == old_system) records[i].event_source_host=new_system
+function _updateSystemsTimeline(old_system, new_system) {
+    const records = w2ui.grd_timeline.records || [];
+    for (const rec of records){
+        const system1 = rec.event_host
+        const system2 = rec.event_source_host
+        if(system1 == old_system ) rec.event_host = new_system
+        if(system2 == old_system) rec.event_source_host = new_system
     }
+}
 
-    //check investigated systems
-    records = w2ui.grd_investigated_systems.records
-    for(var i=0;i<records.length;i++){
-        system1 = records[i].hostname
-
-        if(system1 == old_system) records[i].hostname=new_system
-
+function _updateSystemsInvestigated(old_system, new_system) {
+    const records = w2ui.grd_investigated_systems.records || [];
+    for (const rec of records){
+        const system1 = rec.hostname
+        if(system1 == old_system) rec.hostname = new_system
     }
+}
 
-    //check malware
-    records = w2ui.grd_malware.records
-    for(var i=0;i<records.length;i++){
-        system1 = records[i].hostname
-
-        if(system1 == old_system) records[i].hostname=new_system
-
+function _updateSystemsMalware(old_system, new_system) {
+    const records = w2ui.grd_malware.records || [];
+    for (const rec of records){
+        const system1 = rec.hostname
+        if(system1 == old_system) rec.hostname = new_system
     }
+}
 
-    //Check exfil
-    records = w2ui.grd_exfiltration.records
-    for(var i=0;i<records.length;i++){
-        system1 = records[i].stagingsystem
-        system2 = records[i].original
-        system3 = records[i].exfil_to
-
-        if(system1 == old_system) records[i].stagingsystem=new_system
-        if(system2 == old_system) records[i].original=new_system
-        if(system3 == old_system) records[i].exfil_to=new_system
-
+function _updateSystemsExfil(old_system, new_system) {
+    const records = w2ui.grd_exfiltration.records || [];
+    for (const rec of records){
+        const system1 = rec.stagingsystem
+        const system2 = rec.original
+        const system3 = rec.exfil_to
+        if(system1 == old_system) rec.stagingsystem = new_system
+        if(system2 == old_system) rec.original = new_system
+        if(system3 == old_system) rec.exfil_to = new_system
     }
 }
 
@@ -656,4 +765,236 @@ function cleanup (){
         w.close()
     }
 
+}
+
+
+///////////////////////
+// CTI Analytics     //
+///////////////////////
+
+// Internal helpers to keep the public analytics functions small and easier to test
+function _updateCoverageForEvent(event, coverage) {
+    if (!event.killchain) return;
+    const stage = typeof event.killchain === 'object' ? event.killchain.text : event.killchain;
+    if (!coverage[stage]) return;
+
+    coverage[stage].covered = true;
+    coverage[stage].count++;
+
+    if (!event.date_time) return;
+    const eventTime = new Date(event.date_time);
+
+    if (!coverage[stage].earliest || eventTime < coverage[stage].earliest) {
+        coverage[stage].earliest = eventTime;
+    }
+    if (!coverage[stage].latest || eventTime > coverage[stage].latest) {
+        coverage[stage].latest = eventTime;
+    }
+}
+
+function _countPyramidFrom(items, getPid, distribution, pyramid_levels) {
+    if (!items) return 0;
+    let added = 0;
+    for (const it of items) {
+        const pid = getPid(it);
+        if (!pid || !pyramid_levels) continue;
+        const level = pyramid_levels.find(l => l.id == pid);
+        if (level && distribution[level.text]) {
+            distribution[level.text].count++;
+            added++;
+        }
+    }
+    return added;
+}
+
+function _processMitreEvent(event, techniques) {
+    if (!event.mitre_attack) return;
+    const technique = typeof event.mitre_attack === 'object' ? event.mitre_attack.text : event.mitre_attack;
+    if (!techniques[technique]) {
+        techniques[technique] = {
+            count: 0,
+            systems: new Set(),
+            earliest: null,
+            latest: null
+        };
+    }
+
+    techniques[technique].count++;
+    if (event.event_host) techniques[technique].systems.add(event.event_host);
+
+    if (event.date_time) {
+        const eventTime = new Date(event.date_time);
+        if (!techniques[technique].earliest || eventTime < techniques[technique].earliest) {
+            techniques[technique].earliest = eventTime;
+        }
+        if (!techniques[technique].latest || eventTime > techniques[technique].latest) {
+            techniques[technique].latest = eventTime;
+        }
+    }
+}
+
+function _classifyTimelinePyramid(pyramid) {
+    if (!case_data.timeline) return;
+    for (const event of case_data.timeline) {
+        if (event.mitre_attack) {
+            pyramid.ttps.push({ type: 'timeline', recid: event.recid, technique: event.mitre_attack });
+            event.pyramid_pain = 6; // TTPs
+        }
+    }
+}
+
+function _classifyMalwarePyramid(pyramid) {
+    if (!case_data.malware) return;
+    for (const malware of case_data.malware) {
+        if (malware.md5) {
+            pyramid.hash_values.push({ type: 'hash', recid: malware.recid, value: malware.md5 });
+            malware.pyramid_pain = 1; // Hash
+        }
+        if (malware.text) {
+            pyramid.tools.push({ type: 'tool', recid: malware.recid, name: malware.text });
+            if (malware.pyramid_pain === 1) malware.pyramid_pain = 5;
+        }
+    }
+}
+
+function _classifyNetworkPyramid(pyramid) {
+    if (!case_data.network_indicators) return;
+    for (const indicator of case_data.network_indicators) {
+        if (indicator.ip) {
+            pyramid.ip_addresses.push({ type: 'ip', recid: indicator.recid, value: indicator.ip });
+            indicator.pyramid_pain = 2; // IP
+        }
+        if (indicator.domainname) {
+            pyramid.domain_names.push({ type: 'domain', recid: indicator.recid, value: indicator.domainname });
+            indicator.pyramid_pain = 3;
+        }
+    }
+}
+
+/**
+ * Analyze kill chain coverage based on timeline events
+ * Returns object with stage completion and event counts
+ */
+function analyzeKillChain() {
+    const coverage = {
+        'Recon': { covered: false, count: 0, earliest: null, latest: null },
+        'Weaponization': { covered: false, count: 0, earliest: null, latest: null },
+        'Delivery': { covered: false, count: 0, earliest: null, latest: null },
+        'Exploitation': { covered: false, count: 0, earliest: null, latest: null },
+        'Installation': { covered: false, count: 0, earliest: null, latest: null },
+        'C2': { covered: false, count: 0, earliest: null, latest: null },
+        'Actions on Obj.': { covered: false, count: 0, earliest: null, latest: null }
+    };
+
+    syncAllChanges();
+
+    if (case_data.timeline) {
+        for (const event of case_data.timeline) {
+            _updateCoverageForEvent(event, coverage);
+        }
+    }
+
+    return coverage;
+}
+
+/**
+ * Analyze Pyramid of Pain distribution across all indicators
+ * Returns counts and percentages for each level
+ */
+function analyzePyramidOfPain() {
+    const distribution = {};
+
+    // Initialize counters
+    if (case_data.pyramid_levels) {
+        for (const level of case_data.pyramid_levels) {
+            distribution[level.text] = { count: 0, percentage: 0, color: level.color };
+        }
+    }
+
+    syncAllChanges();
+
+    let total = 0;
+    // Use helper to count contributions from different collections
+    total += _countPyramidFrom(case_data.timeline, it => it.pyramid_pain, distribution, case_data.pyramid_levels);
+    total += _countPyramidFrom(case_data.malware, it => it.pyramid_pain, distribution, case_data.pyramid_levels);
+    total += _countPyramidFrom(case_data.network_indicators, it => it.pyramid_pain, distribution, case_data.pyramid_levels);
+
+    // Calculate percentages
+    for (const key of Object.keys(distribution)) {
+        distribution[key].percentage = total > 0 ?
+            Math.round((distribution[key].count / total) * 100) : 0;
+    }
+
+    return { distribution, total };
+}
+
+/**
+ * Generate MITRE ATT&CK technique frequency report
+ */
+function analyzeMitreAttack() {
+    const techniques = {};
+
+    syncAllChanges();
+
+    if (case_data.timeline) {
+        for (const event of case_data.timeline) {
+            _processMitreEvent(event, techniques);
+        }
+    }
+
+    // Convert Sets to arrays for serialization
+    for (const key of Object.keys(techniques)) {
+        techniques[key].systems = Array.from(techniques[key].systems);
+    }
+
+    return techniques;
+}
+
+/**
+ * Generate comprehensive CTI summary report
+ */
+function generateCTISummary() {
+    const killchain = analyzeKillChain();
+    const pyramid = analyzePyramidOfPain();
+    const mitre = analyzeMitreAttack();
+
+    return {
+        case_name: case_data.case_id || "Unnamed Case",
+        threat_actor: case_data.cti_mode?.threat_actor?.name ?? "Unknown",
+        attribution_confidence: case_data.cti_mode?.attribution?.confidence ?? "Unknown",
+        attack_narrative: case_data.summary || "",
+        killchain_analysis: killchain,
+        pyramid_analysis: pyramid,
+        mitre_techniques: mitre,
+        generated_at: new Date().toISOString()
+    };
+}
+
+/**
+ * Auto-classify all indicators into Pyramid of Pain levels
+ */
+function classifyIndicatorsPyramid() {
+    syncAllChanges();
+
+    if (!case_data.cti_mode || !case_data.pyramid_levels) {
+        w2alert('CTI mode not initialized');
+        return;
+    }
+
+    const pyramid = case_data.cti_mode.pyramid_analysis;
+
+    // Clear existing
+    for (const key of Object.keys(pyramid)) pyramid[key] = [];
+
+    // Run classification helpers
+    _classifyTimelinePyramid(pyramid);
+    _classifyMalwarePyramid(pyramid);
+    _classifyNetworkPyramid(pyramid);
+
+    // Update grids
+    if (w2ui.grd_timeline) w2ui.grd_timeline.refresh();
+    if (w2ui.grd_malware) w2ui.grd_malware.refresh();
+    if (w2ui.grd_network) w2ui.grd_network.refresh();
+
+    saveSOD();
 }

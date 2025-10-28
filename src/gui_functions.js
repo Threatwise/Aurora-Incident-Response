@@ -1,9 +1,8 @@
-
-
 //////////////////////////////
 //////// Lock Changes ////////
 //////////////////////////////
 
+var lockstate;
 
 /**
  * Change to GUI to read only mode when the user does not have the lock

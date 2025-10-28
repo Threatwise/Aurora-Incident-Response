@@ -1,6 +1,8 @@
 .idea
 node_modules
 release-builds
+build/
+dist/
 *~
 
 # Snyk Security Extension - AI Rules (auto-generated)

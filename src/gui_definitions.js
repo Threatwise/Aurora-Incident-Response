@@ -135,6 +135,14 @@ var config = {
         name: 'sidebar',
         bottomHTML : '<div id="lock" style="background-color: #eee; padding: 10px 5px; border-top: 1px solid silver">&#128272; Case unlocked (edits allowed)</div>',
         nodes: [
+            { id: 'cti_analytics', text: 'CTI Analytics', group: true, expanded: true, nodes: [
+                    { id: 'killchain_view', text: 'Kill Chain Coverage', icon: 'fa fa-chain'},
+                    { id: 'pyramid_view', text: 'Pyramid of Pain', icon: 'fa fa-triangle-exclamation'},
+                    { id: 'mitre_heatmap', text: 'MITRE Heatmap', icon: 'fa fa-fire'},
+                    { id: 'killchain_builder', text: 'Kill Chain Builder', icon: 'fa fa-cogs'},
+                    { id: 'diamond_model', text: 'Diamond Model', icon: 'fa fa-diamond'},
+                    { id: 'cti_mode', text: 'CTI Mode', icon: 'fa fa-crosshairs'}
+                ]},
             { id: 'investigation', text: 'Investigation', group: true, expanded: true, nodes: [
                     { id: 'timeline', text: 'Timeline', icon: 'fa fa-clock-o'},
                     { id: 'investigated_systems', text: 'Investigated Systems', icon: 'fa fa-search-plus' },
@@ -182,6 +190,8 @@ var config = {
             { field: 'event_host', caption: 'Event System', type: 'text' },
             { field: 'event_source_host', caption: 'Source System', type: 'text'},
             { field: 'killchain', caption: 'Killchain', type: 'list', options:{items:case_data.killchain}},
+            { field: 'mitre_attack', caption: 'MITRE ATT&CK', type: 'list', options:{items:case_data.attack_techniques}},
+            { field: 'pyramid_pain', caption: 'Pyramid', type: 'list', options:{items:case_data.pyramid_levels.map(p => p.name)}},
             { field: 'notes', caption: 'Notes', type: 'text' },
             { field: 'attribution', caption: 'Attribution', type: 'text' }
         ],
@@ -194,6 +204,17 @@ var config = {
             { field: 'event_source_host',sortable: true, caption: 'Remote System', size: '120px', editable: { type: 'list', items: case_data.systems, showAll: true ,  match: 'contains' }},
             { field: 'killchain',sortable: true, caption: 'Killchain', size: '100px',
                 editable: { type: 'list', items: case_data.killchain, showAll: true ,  match: 'contains' }},
+            { field: 'mitre_attack',sortable: true, caption: 'MITRE ATT&CK', size: '160px',
+                editable: { type: 'list', items: case_data.attack_techniques, showAll: true ,  match: 'contains' }},
+            { field: 'pyramid_pain', sortable: true, caption: 'Pyramid', size: '90px',
+                editable: { type: 'list', items: case_data.pyramid_levels.map(p => p.name), showAll: true },
+                render: function(record) {
+                    if (!record.pyramid_pain) return '';
+                    const level = case_data.pyramid_levels.find(p => p.name === record.pyramid_pain);
+                    if (!level) return record.pyramid_pain;
+                    return '<div style="background-color: ' + level.color + '; color: #000; padding: 2px 4px; border-radius: 3px; text-align: center; font-weight: bold;">' + level.name + '</div>';
+                }
+            },
             { field: 'event_data', caption: 'Event', size: '100%', info: true, editable: { type: 'text', min: 10, max: 500 }},
             { field: 'notes', caption: 'Notes', size: '200px', editable: { type: 'text', min: 0, max: 200 }},
             { field: 'visual',sortable: true, caption: 'Visual?', size: '40px', type:"checkbox", editable: { type: 'checkbox' }},
@@ -207,7 +228,11 @@ var config = {
                 { id: 'add', type: 'button', caption: 'Add Item', icon: 'w2ui-icon-plus' },
                 { id: 'remove', type: 'button', caption: 'Remove Item', icon: 'fa fa-minus' },
                 { id: 'import', type: 'button', caption: 'Import CSV', icon: 'fa fa-upload' },
-                { id: 'export', type: 'button', caption: 'Export CSV', icon: 'fa fa-download' }
+                { id: 'export', type: 'button', caption: 'Export CSV', icon: 'fa fa-download' },
+                { id: 'export_pdf', type: 'button', caption: 'Export PDF', icon: 'fa fa-file-pdf-o' },
+                { id: 'export_stix', type: 'button', caption: 'Export STIX', icon: 'fa fa-share-alt' },
+                { type: 'break' },
+                { id: 'killchain_builder', type: 'button', caption: 'Kill Chain Builder', icon: 'fa fa-sitemap' }
             ],
         },
         records: [
@@ -291,6 +316,7 @@ var config = {
             { field: 'path_on_disk',  caption: 'Path', type: 'text' },
             { field: 'hostname', caption: 'System', type: 'text' },
             { field: 'md5', caption: 'Hash', type: 'text'},
+            { field: 'pyramid_pain', caption: 'Pyramid', type: 'list', options:{items:case_data.pyramid_levels.map(p => p.name)}},
             { field: 'notes', caption: 'Notes', type: 'text' },
             { field: 'attribution',  caption: 'Attribution', type: 'text' },
         ],
@@ -321,6 +347,15 @@ var config = {
                     }
                     html = '<img src="./img/'+icon+'" alt="'+caption+'" style="width:16px;height:16px" >'
                     return html
+                }
+            },
+            { field: 'pyramid_pain', sortable: true, caption: 'Pyramid', size: '90px',
+                editable: { type: 'list', items: case_data.pyramid_levels.map(p => p.name), showAll: true },
+                render: function(record) {
+                    if (!record.pyramid_pain) return '';
+                    const level = case_data.pyramid_levels.find(p => p.name === record.pyramid_pain);
+                    if (!level) return record.pyramid_pain;
+                    return '<div style="background-color: ' + level.color + '; color: #000; padding: 2px 4px; border-radius: 3px; text-align: center; font-weight: bold;">' + level.name + '</div>';
                 }
             },
             { field: 'attribution',sortable: true, caption: 'Attribution', size: '80px' , editable: { type: 'text', min: 0, max: 20 }},
@@ -407,6 +442,7 @@ var config = {
             { field: 'port', caption: 'Port', type: 'int' },
             { field: 'context', caption: 'Context', type: 'text' },
             { field: 'malware', caption: 'Malware', type: 'text' },
+            { field: 'pyramid_pain', caption: 'Pyramid', type: 'list', options:{items:case_data.pyramid_levels.map(p => p.name)}},
             { field: 'whois', caption: 'Whois', type: 'text' },
             { field: 'attribution', caption: 'Attribution', type: 'text' },
         ],
@@ -418,6 +454,15 @@ var config = {
             { field: 'context', caption: 'Context', size: '100%', info: true, editable: { type: 'text', min: 0, max: 500 }},
             { field: 'last_activity',sortable: true, caption: 'Last activity' , type:'datetime', size: '80px', editable: { type: 'datetime'} },
             { field: 'malware', sortable: true,caption: 'Malware', size: '120px', type:"text", editable: { type: 'list', items: case_data.malware, showAll: true ,  match: 'contains' }},
+            { field: 'pyramid_pain', sortable: true, caption: 'Pyramid', size: '90px',
+                editable: { type: 'list', items: case_data.pyramid_levels.map(p => p.name), showAll: true },
+                render: function(record) {
+                    if (!record.pyramid_pain) return '';
+                    const level = case_data.pyramid_levels.find(p => p.name === record.pyramid_pain);
+                    if (!level) return record.pyramid_pain;
+                    return '<div style="background-color: ' + level.color + '; color: #000; padding: 2px 4px; border-radius: 3px; text-align: center; font-weight: bold;">' + level.name + '</div>';
+                }
+            },
             { field: 'whois', caption: 'Whois', size: '100px', editable: { type: 'text', min: 0, max: 1500 }},
             { field: 'attribution', sortable: true,caption: 'Attribution', size: '80px' , editable: { type: 'text', min: 0, max: 20 }},
 
@@ -841,4 +886,3 @@ for(let grid in config)
         }
     }
 };
-

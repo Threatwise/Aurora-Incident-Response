@@ -1,8 +1,8 @@
 // Main Data Template for new files
 
-storage_format_version = 7
+const storage_format_version = 9
 
-data_template  = {
+const data_template  = {
     "storage_format_version": storage_format_version,
     "locked":true,
     "case_id":"XXX",
@@ -22,6 +22,7 @@ data_template  = {
     "evidence":[],
     "actions":[],
     "casenotes":[],
+    "attack_techniques": mitre_attack_techniques,
     "event_types":[
         {id:1,text:"EventLog"},
         {id:2,text:"File"},
@@ -89,10 +90,178 @@ data_template  = {
         { id: 7, text: 'External Source' },
         { id: 8, text: 'Other' },
     ],
+
+    // CTI Mode Fields
+    "case_type": "IR", // "IR", "CTI", "ThreatModel", "Hybrid"
+
+    "cti_mode": {
+        "enabled": false,
+        "primary_objective": "",
+
+        "threat_actor": {
+            "name": "",
+            "aliases": [],
+            "motivation": "",
+            "sophistication": "",
+            "first_seen": "",
+            "last_seen": "",
+            "associated_campaigns": [],
+            "target_sectors": [],
+            "target_geos": []
+        },
+
+        "attribution": {
+            "confidence": "Unknown",
+            "indicators": {
+                "infrastructure_overlap": 0,
+                "ttp_overlap": 0,
+                "target_overlap": 0,
+                "temporal_correlation": 0,
+                "technical_evidence": 0
+            },
+            "confidence_notes": ""
+        },
+
+        "pyramid_analysis": {
+            "hash_values": [],
+            "ip_addresses": [],
+            "domain_names": [],
+            "network_artifacts": [],
+            "host_artifacts": [],
+            "tools": [],
+            "ttps": []
+        }
+    },
+
+    // Pyramid of Pain levels
+    "pyramid_levels": [
+        {id: 1, text: "Hash Values", color: "#90EE90"},
+        {id: 2, text: "IP Addresses", color: "#FFD700"},
+        {id: 3, text: "Domain Names", color: "#FFA500"},
+        {id: 4, text: "Network/Host Artifacts", color: "#FF6347"},
+        {id: 5, text: "Tools", color: "#DC143C"},
+        {id: 6, text: "TTPs", color: "#8B0000"}
+    ],
+
+    // Cyber Kill Chain (standalone or linked to timeline)
+    "kill_chain": {
+        "mode": "linked",
+        "stages": [
+            {
+                "name": "Reconnaissance",
+                "techniques": [],
+                "indicators": [],
+                "notes": "",
+                "timeline_refs": [],
+                "confidence": "Unknown"
+            },
+            {
+                "name": "Weaponization",
+                "techniques": [],
+                "indicators": [],
+                "notes": "",
+                "timeline_refs": [],
+                "confidence": "Unknown"
+            },
+            {
+                "name": "Delivery",
+                "techniques": [],
+                "indicators": [],
+                "notes": "",
+                "timeline_refs": [],
+                "confidence": "Unknown"
+            },
+            {
+                "name": "Exploitation",
+                "techniques": [],
+                "indicators": [],
+                "notes": "",
+                "timeline_refs": [],
+                "confidence": "Unknown"
+            },
+            {
+                "name": "Installation",
+                "techniques": [],
+                "indicators": [],
+                "notes": "",
+                "timeline_refs": [],
+                "confidence": "Unknown"
+            },
+            {
+                "name": "Command & Control",
+                "techniques": [],
+                "indicators": [],
+                "notes": "",
+                "timeline_refs": [],
+                "confidence": "Unknown"
+            },
+            {
+                "name": "Actions on Objectives",
+                "techniques": [],
+                "indicators": [],
+                "notes": "",
+                "timeline_refs": [],
+                "confidence": "Unknown"
+            }
+        ]
+    },
+
+    // Diamond Model
+    "diamond_model": {
+        "mode": "linked",
+
+        "adversary": {
+            "actor_id": "",
+            "capability_level": "",
+            "intent": "",
+            "known_groups": [],
+            "timeline_refs": []
+        },
+
+        "capability": {
+            "tools": [],
+            "techniques": [],
+            "exploits": [],
+            "malware_families": [],
+            "timeline_refs": []
+        },
+
+        "infrastructure": {
+            "c2_servers": [],
+            "domains": [],
+            "hosting_providers": [],
+            "registrars": [],
+            "ssl_certs": [],
+            "timeline_refs": []
+        },
+
+        "victim": {
+            "organization": "",
+            "sector": "",
+            "geography": "",
+            "targeted_assets": [],
+            "data_targeted": [],
+            "timeline_refs": []
+        },
+
+        "meta_features": {
+            "social_political": "",
+            "technology": "",
+            "timestamp": ""
+        }
+    },
+
+    // MITRE ATT&CK integration
+    "mitre_attack": {
+        "enterprise_version": "",
+        "techniques_used": [],
+        "tactics_observed": [],
+        "matrices_affected": []
+    }
 }
 
 
-misp_attribute_types = [
+const misp_attribute_types = [
     { id: 1, text: 'filename' },
     { id: 2, text: 'domain' },
     { id: 3, text: 'ip-dst' },

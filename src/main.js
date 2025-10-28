@@ -81,10 +81,15 @@ app.on('window-all-closed', () => {
 
 // SSL/TSL: this is the self signed certificate support
 app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
-    // On certificate error we disable default behaviour (stop loading the page)
-    // and we then say "it is all fine - true" to the callback
-    event.preventDefault();
-    callback(true);
+    // Allow self-signed certificates only in development or when explicitly enabled.
+    const allowInsecure = (process.env.AURORA_ALLOW_INSECURE_CERTS === '1') || !app.isPackaged;
+    if (allowInsecure) {
+        event.preventDefault();
+        callback(true);
+    } else {
+        // Use default behavior (block) by not preventing default and returning false
+        callback(false);
+    }
 });
 
 
