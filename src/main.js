@@ -1,6 +1,7 @@
 
 const { app, BrowserWindow, shell, Menu } = require('electron');
 const { dialog } = require('electron');
+const path = require('node:path');
 const logger = require('./logger.js');
 
 // Keep a global reference of the window object, if you don't, the window will
@@ -14,15 +15,15 @@ globalThis.Dirty = {
 const createWindow = () => {
     try {
         logger.info('Creating main application window');
-
         // Create the browser window.
         win = new BrowserWindow({
             width: 1600,
             height: 900,
             icon: 'icon/aurora.ico',
             webPreferences: {
-                nodeIntegration: true,
-                contextIsolation: false
+                nodeIntegration: false,
+                contextIsolation: true,
+                preload: path.join(__dirname, 'preload.js')
             }
         });
 

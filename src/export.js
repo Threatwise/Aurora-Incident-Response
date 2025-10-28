@@ -19,19 +19,19 @@ function export_csv(grid) {
     }
     csv += headerline + "\n"
 
-    for (let i = 0; i < grid.records.length; i++) {
-        const record = grid.records[i]
+    for (const record of grid.records) {
         let line = ""
-        for (let j = 0; j < columns.length; j++) {
-            const column = columns[j]
+        let colIndex = 0
+        for (const column of columns) {
             const value = normalizeGridValue(record[column.field], column.field)
             line += csvEscape(value)
-            if (j < columns.length - 1) line += ","
+            if (colIndex < columns.length - 1) line += ","
+            colIndex++
         }
         csv += line + "\n"
     }
 
-    const fs = require("fs")
+    const fs = require("node:fs")
     w2utils.lock($("#main"), "Exporting file...", true)
     try {
         fs.writeFileSync(filePath.toString(), csv)
@@ -60,7 +60,7 @@ function export_pdf(grid) {
     })
 
     const html = buildPdfHtml(grid.name, columns, rows)
-    const fs = require("fs")
+    const fs = require("node:fs")
     w2utils.lock($("#main"), "Generating PDF...", true)
 
     const tempWindow = new BrowserWindow({
@@ -106,8 +106,7 @@ function export_stix_bundle(grid) {
     const reportRefSet = new Set()
     const attackPatternMap = {}
 
-    for (let i = 0; i < grid.records.length; i++) {
-        const record = grid.records[i]
+    for (const record of grid.records) {
         const observedId = buildStixId('observed-data')
         const eventTimeIso = parseDateToIso(record.date_time, nowIso)
         const eventType = lookupOptionText(case_data.event_types, record.event_type)
@@ -201,7 +200,7 @@ function export_stix_bundle(grid) {
         objects: objects
     }
 
-    const fs = require("fs")
+    const fs = require("node:fs")
     w2utils.lock($("#main"), "Exporting STIX bundle...", true)
     try {
         fs.writeFileSync(filePath.toString(), JSON.stringify(bundle, null, 2))
@@ -224,8 +223,17 @@ function resolveDialogPath(result) {
 
 function csvEscape(value) {
     if (value === undefined || value === null) return '""'
-    const str = String(value).replace(/"/g, '""')
+    const str = String(value).replaceAll('"', '""')
     return '"' + str + '"'
+}
+
+function normalizeObjectValue(value) {
+    if (value.text && value.id) {
+        return value.id + ' - ' + value.text
+    }
+    if (value.text) return value.text
+    if (value.value) return value.value
+    return JSON.stringify(value)
 }
 
 function normalizeGridValue(value, field) {
@@ -239,12 +247,7 @@ function normalizeGridValue(value, field) {
         return value ? 'Yes' : 'No'
     }
     if (typeof value === 'object') {
-        if (value.text && value.id) {
-            return value.id + ' - ' + value.text
-        }
-        if (value.text) return value.text
-        if (value.value) return value.value
-        return JSON.stringify(value)
+        return normalizeObjectValue(value)
     }
     if (typeof value === 'string' && field === 'mitre_attack') {
         const technique = findTechniqueById(value)
@@ -255,12 +258,12 @@ function normalizeGridValue(value, field) {
 
 function escapeHtml(value) {
     return String(value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;')
-        .replace(/\r?\n/g, '<br>')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;')
+        .replaceAll(/\r?\n/g, '<br>')
 }
 
 function buildPdfHtml(gridName, columns, rows) {
@@ -294,16 +297,16 @@ function buildPdfHtml(gridName, columns, rows) {
 function parseDateToIso(value, fallbackIso) {
     if (!value) return fallbackIso
     const parsed = new Date(value)
-    if (isNaN(parsed.getTime())) return fallbackIso
+    if (Number.isNaN(parsed.getTime())) return fallbackIso
     return parsed.toISOString()
 }
 
 function lookupOptionText(options, value) {
     if (!options || value === undefined || value === null) return ''
     const normalizedValue = typeof value === 'object' && value.id ? value.id : value
-    for (let i = 0; i < options.length; i++) {
-        if (options[i].id === normalizedValue || options[i].text === normalizedValue) {
-            return options[i].text
+    for (const option of options) {
+        if (option.id === normalizedValue || option.text === normalizedValue) {
+            return option.text
         }
     }
     return ''
@@ -311,8 +314,7 @@ function lookupOptionText(options, value) {
 
 function findTechniqueById(id) {
     if (!case_data || !Array.isArray(case_data.attack_techniques)) return null
-    for (let i = 0; i < case_data.attack_techniques.length; i++) {
-        const entry = case_data.attack_techniques[i]
+    for (const entry of case_data.attack_techniques) {
         if (entry.id === id || entry.text === id) {
             return entry
         }
@@ -353,7 +355,7 @@ function buildStixId(type) {
 
 function generateUUID() {
     try {
-        const crypto = require('crypto')
+        const crypto = require('node:crypto')
         if (crypto.randomUUID) {
             return crypto.randomUUID()
         }
@@ -369,8 +371,9 @@ function generateUUID() {
             hex.slice(20)
         )
     } catch (err) {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-            const r = Math.random() * 16 | 0
+        console.error('Failed to generate UUID using crypto:', err)
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replaceAll(/[xy]/g, function (c) {
+            const r = Math.trunc(Math.random() * 16)
             const v = c === 'x' ? r : (r & 0x3 | 0x8)
             return v.toString(16)
         })

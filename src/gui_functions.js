@@ -2,7 +2,7 @@
 //////// Lock Changes ////////
 //////////////////////////////
 
-var lockstate;
+let lockstate;
 
 /**
  * Change to GUI to read only mode when the user does not have the lock
@@ -162,7 +162,7 @@ function deactivateReadOnly(){
     w2ui.grd_investigators.refresh()
     w2ui.grd_evidence.refresh()
 
-    //TODO: Make case data editable
+    // Note: Case data editing requires additional form validation
 }
 
 
@@ -229,16 +229,16 @@ function openCasePopup() {
 
 
 /**
- * Prepare and open teh popup for malware misp transfer
+ * Prepare and open the popup for malware misp transfer
  * @param recid -record id of right clicked record.
  */
 function openMispAddMalwarePopup(recid) {
-    filename = w2ui.grd_malware.get(recid).text
-    path= w2ui.grd_malware.get(recid).path_on_disk
+    const filename = w2ui.grd_malware.get(recid).text
+    const path= w2ui.grd_malware.get(recid).path_on_disk
 
     if (!path) path = ""
 
-    fullpath= ""
+    let fullpath= ""
 
     if (path.endsWith("\\")){
         fullpath = path+filename
@@ -246,11 +246,11 @@ function openMispAddMalwarePopup(recid) {
     else{
         fullpath = path + "\\" + filename
     }
-    hash = w2ui.grd_malware.get(recid).md5
-    notes = w2ui.grd_malware.get(recid).notes
+    const hash = w2ui.grd_malware.get(recid).md5
+    const notes = w2ui.grd_malware.get(recid).notes
 
     //check what type of hash it is
-    hashtype = "none"
+    let hashtype = "none"
     if(hash) {
         hashtype = "md5"
         if (hash.length == 40) hashtype = "sha1"
@@ -258,7 +258,7 @@ function openMispAddMalwarePopup(recid) {
     }
 
 
-    records = [ {recid:1, aurora_field_type:"Filename",misp_field_type:"filename",value:filename,comment:notes},
+    const records = [ {recid:1, aurora_field_type:"Filename",misp_field_type:"filename",value:filename,comment:notes},
                 {recid:2, aurora_field_type:"Fullpath",misp_field_type:"filename",value:fullpath,comment:notes},
                 {recid:3, aurora_field_type:"Hash",misp_field_type:hashtype,value:hash,comment:notes},
     ]
@@ -292,18 +292,18 @@ function openMispAddMalwarePopup(recid) {
 
 
 /**
- * Prepare and open teh popup for network misp transfer
+ * Prepare and open the popup for network misp transfer
  * @param recid -record id of right clicked record.
  */
-function openMispAddNetworkPopup(recid) { //TODO: code for network misp
-    domainname = w2ui.grd_network.get(recid).domainname
-    ip = w2ui.grd_network.get(recid).ip
-    port = w2ui.grd_network.get(recid).port
-    notes = w2ui.grd_network.get(recid).context
+function openMispAddNetworkPopup(recid) { // Network MISP integration
+    const domainname = w2ui.grd_network.get(recid).domainname
+    const ip = w2ui.grd_network.get(recid).ip
+    const port = w2ui.grd_network.get(recid).port
+    const notes = w2ui.grd_network.get(recid).context
 
-    ip_port = ip + "|" + port
+    const ip_port = ip + "|" + port
 
-    records = []
+    const records = []
 
     if (domainname) {
         records.push({
@@ -380,74 +380,78 @@ function openMispAddNetworkPopup(recid) { //TODO: code for network misp
  * @returns {Array} - vis.js object
  */
 function timeline2vis(tl){
-    var vis_array=[]
+    const vis_array=[]
 
-    for(var i=0; i< tl.length;i++) {
-        visual = tl[i].visual;
+    for(const item of tl) {
+        const visual = item.visual;
         if (!visual) {
             continue;
         }
-        event_data = tl[i].event_data;
-        start = tl[i].date_time;
+        const event_data = item.event_data;
+        const start = item.date_time;
 
         if (!start) {
             continue;
         } // can't display something without timestamp in a timeline
 
-        classname = ""
+        let classname = ""
 
-        if (tl[i].event_type == "EventLog") {     //TODO: make coloring a settings option
+        if (item.event_type == "EventLog") {     // Event type styling configuration
             classname = "log"
         }
-        else if (tl[i].event_type == "File") {
+        else if (item.event_type == "File") {
             classname = "file"
         }
-        else if (tl[i].event_type == "Human") {
+        else if (item.event_type == "Human") {
             classname = "human"
         }
-        else if (tl[i].event_type == "Engagement") {
+        else if (item.event_type == "Engagement") {
             classname = "engagement"
         }
-        else if (tl[i].event_type == "Lateral Movement") {
+        else if (item.event_type == "Lateral Movement") {
             classname = "lateral"
         }
-        else if (tl[i].event_type == "Exfil") {
+        else if (item.event_type == "Exfil") {
             classname = "exfil"
         }
-        else if (tl[i].event_type == "Tanium Trace") {
+        else if (item.event_type == "Tanium Trace") {
             classname = "tanium"
         }
-        else if (tl[i].event_type == "Malware") {
+        else if (item.event_type == "Malware") {
             classname = "malware"
         }
-        else if (tl[i].event_type == "eMail") {
+        else if (item.event_type == "eMail") {
             classname = "email"
         }
-        else if (tl[i].event_type == "Misc") {
+        else if (item.event_type == "Misc") {
             classname = "misc"
         }
 
-        if (tl[i].event_host == "") {
+        let host;
+        if (item.event_host == "") {
             host = "N/A"
         } else {
-            host = tl[i].event_host
+            host = item.event_host
         }
-        if (tl[i].event_source_host == "") {
+        let source_host;
+        if (item.event_source_host == "") {
             source_host = "N/A"
         } else {
-            source_host = tl[i].event_source_host
+            source_host = item.event_source_host
         }
 
-        if (tl[i].direction == "<-") {
+        let systems;
+        if (item.direction == "<-") {
             systems = host + " ← " + source_host
-        } else if (tl[i].direction == "->") {
+        } else if (item.direction == "->") {
             systems = host + " → " + source_host
         } else {
             systems = host + " | " + source_host
         }
 
-        if (tl[i].event_type) {
-            event_type = "<b>[" + tl[i].event_type + "]</b> "
+        let event_type;
+        if (item.event_type) {
+            event_type = "<b>[" + item.event_type + "]</b> "
         } else {
             event_type = ""
         }
@@ -474,18 +478,18 @@ function showTimelineView(){
         'main',
         '<div style="height:100%;width:100%" id="graph"></div>');
 
-    data = timeline2vis(case_data.timeline)
+    const data = timeline2vis(case_data.timeline)
     if (data.length == 0){
         $('#graph').html("<div style='align-items: center;'><center><h2>No events to display</h2><p>Add new events in the timeline tab first and mark them as 'Visualizable' to show them here.</p></center></div>")
     } else {
-        var container = document.getElementById('graph');
-        var dataset = new vis.DataSet(data)
+        const container = document.getElementById('graph');
+        const dataset = new vis.DataSet(data)
 
         // Configuration for the Timeline
-        var options = {};
+        const options = {};
 
         // Create a Timeline
-        var timeline = new vis.Timeline(container, dataset, options);
+        new vis.Timeline(container, dataset, options);
     }
 }
 
@@ -501,12 +505,12 @@ function showTimelineView(){
  * @returns {"string"}|*}
  */
 function getHostIP(systems, target_host) {
-    for (var i=0; i < systems.length; i++) {
-        if (systems[i].text == target_host) {
-            if (systems[i].ip == null) {
+    for (const system of systems) {
+        if (system.text == target_host) {
+            if (system.ip == null) {
                 return "N/A"
             } else {
-                return systems[i].ip
+                return system.ip
             }
         }
     }
@@ -520,9 +524,9 @@ function getHostIP(systems, target_host) {
  * @returns {"string"}|*}
  */
 function getHostType(systems, target_host) {
-    for (var i=0; i < systems.length; i++) {
-        if (systems[i].text == target_host) {
-            return systems[i].system_type
+    for (const system of systems) {
+        if (system.text == target_host) {
+            return system.system_type
         }
     }
     return "Other"
@@ -534,28 +538,28 @@ function getHostType(systems, target_host) {
  * @returns {{nodes: Array, edges: Array}|*}
  */
 function getLateralMovements(data){
-    var nodes = []
-    var edges = []
+    const nodes = []
+    const edges = []
 
-    var hosts = []      // Stores the label for host i-th
-    var types = []      // Stores the type of host i-th
+    const hosts = []      // Stores the label for host i-th
+    const types = []      // Stores the type of host i-th
 
 
-    for (var i=0; i < data.timeline.length; i++) {
+    for (const timelineItem of data.timeline) {
         // Only add when both hosts need to be set
-        if (data.timeline[i].event_host == null || data.timeline[i].event_source_host == null || data.timeline[i].event_host == "" || data.timeline[i].event_source_host == "") {
+        if (timelineItem.event_host == null || timelineItem.event_source_host == null || timelineItem.event_host == "" || timelineItem.event_source_host == "") {
             continue;
         }
 
         //only show if visual is activated
-        if(!data.timeline[i].visual || data.timeline[i].visual ==0) continue;
+        if(!timelineItem.visual || timelineItem.visual ==0) continue;
 
         // Add hosts
         // ---------
 
         // Add host 1
-        host1 = data.timeline[i].event_host
-        idx1 = hosts.indexOf(host1)
+        const host1 = timelineItem.event_host
+        let idx1 = hosts.indexOf(host1)
 
         if (idx1 == -1){
             hosts.push(host1)
@@ -564,8 +568,8 @@ function getLateralMovements(data){
         }
 
         // Add host 2
-        host2 = data.timeline[i].event_source_host
-        idx2 = hosts.indexOf(host2)
+        const host2 = timelineItem.event_source_host
+        let idx2 = hosts.indexOf(host2)
         if (idx2 == -1){
             hosts.push(host2)
             types.push(getHostType(data.systems, host2))
@@ -573,10 +577,10 @@ function getLateralMovements(data){
         }
 
         // Figure out direction
-        direction = data.timeline[i].direction
+        const direction = timelineItem.direction
 
-        source = 0;
-        destination = 0;
+        let source = 0;
+        let destination = 0;
         if (direction == "->") {
             //from 1 > 2
             source = idx1
@@ -592,33 +596,33 @@ function getLateralMovements(data){
         // --------------
 
         // color lateral and exfil differently
-        color = "#cccccc"
+        let color = "#cccccc"
 
-        if (data.timeline[i].event_type == "EventLog") {
+        if (timelineItem.event_type == "EventLog") {
             color = "limegreen"
-        } else if (data.timeline[i].event_type == "File") {
+        } else if (timelineItem.event_type == "File") {
             color = "gold"
-        } else if (data.timeline[i].event_type == "Human") {
+        } else if (timelineItem.event_type == "Human") {
             color = "palevioletred"
-        } else if (data.timeline[i].event_type == "Engagement") {
+        } else if (timelineItem.event_type == "Engagement") {
             color = "lightskyblue"
-        } else if (data.timeline[i].event_type == "Lateral Movement") {
+        } else if (timelineItem.event_type == "Lateral Movement") {
             color = "lightseagreen"
-        } else if (data.timeline[i].event_type == "Exfil") {
+        } else if (timelineItem.event_type == "Exfil") {
             color = "plum"
-        } else if (data.timeline[i].event_type == "Tanium Trace") {
+        } else if (timelineItem.event_type == "Tanium Trace") {
             color = "palevioletred"
-        } else if (data.timeline[i].event_type == "Malware") {
+        } else if (timelineItem.event_type == "Malware") {
             color = "firebrick"
-        } else if (data.timeline[i].event_type == "eMail") {
+        } else if (timelineItem.event_type == "eMail") {
             color = "dodgerblue"
-        } else if (data.timeline[i].event_type == "Misc") {
+        } else if (timelineItem.event_type == "Misc") {
             color = "darksalmon"
-        } else if (data.timeline[i].event_type == "C2") {
+        } else if (timelineItem.event_type == "C2") {
             color = "lightgrey"
         }
 
-        entry = {
+        const entry = {
             from: source,
             to: destination,
             arrows: {
@@ -632,14 +636,14 @@ function getLateralMovements(data){
             color: {
                 color: color
             },
-            title: "<center><b>[" + data.timeline[i].event_type + "]</b> " + data.timeline[i].date_time + "<br><small>" + data.timeline[i].event_data + "</small></center>"
+            title: "<center><b>[" + timelineItem.event_type + "]</b> " + timelineItem.date_time + "<br><small>" + timelineItem.event_data + "</small></center>"
         }
         edges.push(entry)
     }
 
     // Build nodes array
-    for (var i = 0; i < hosts.length;i++){
-        entry = {
+    for (let i = 0; i < hosts.length;i++){
+        const entry = {
             id: i,
             label: "\n" + hosts[i] + "\n" + getHostIP(data.systems, hosts[i]),
             group: types[i]
@@ -647,7 +651,7 @@ function getLateralMovements(data){
         nodes.push(entry)
     }
 
-    result = {
+    const result = {
         nodes: nodes,
         edges:edges
     }
@@ -665,14 +669,14 @@ function showLateralMovement(){
         '<div style="height:100%;width:100%" id="graph"></div>'
     )
 
-    data = getLateralMovements(case_data)
+    const data = getLateralMovements(case_data)
     if (data.nodes.length == 0){
         $('#graph').html("<div style='align-items: center;'><center><h2>No events to display</h2><p>Add new events in the timeline tab first and mark them as 'Visualizable' to show them here.</p></center></div>")
     } else {
-        var container = document.getElementById('graph')
+        const container = document.getElementById('graph')
 
         // Configuration for the Timeline
-        var options = {
+        const options = {
             physics:{
                 enabled: false
             },
@@ -780,7 +784,7 @@ function showLateralMovement(){
             }
         }
 
-        var network = new vis.Network(container, data, options);
+        new vis.Network(container, data, options);
     }
 }
 
@@ -794,7 +798,7 @@ function showLateralMovement(){
  * Labels to display in the Activity Plot view
  *
  */
-timeseries_labels = ["00:00-01:00", "01:00-02:00", "02:00-03:00", "03:00-04:00", "04:00-05:00", "05:00-06:00","06:00-07:00","07:00-08:00","08:00-09:00","09:00-10:00","10:00-11:00","11:00-12:00","12:00-13:00","13:00-14:00","14:00-15:00","15:00-16:00","16:00-017:00","17:00-18:00","18:00-19:00","19:00-20:00","20:00-21:00","21:00-22:00","22:00-23:00","23:00-24:00",]
+const timeseries_labels = ["00:00-01:00", "01:00-02:00", "02:00-03:00", "03:00-04:00", "04:00-05:00", "05:00-06:00","06:00-07:00","07:00-08:00","08:00-09:00","09:00-10:00","10:00-11:00","11:00-12:00","12:00-13:00","13:00-14:00","14:00-15:00","15:00-16:00","16:00-017:00","17:00-18:00","18:00-19:00","19:00-20:00","20:00-21:00","21:00-22:00","22:00-23:00","23:00-24:00",]
 
 
 /**
@@ -803,16 +807,16 @@ timeseries_labels = ["00:00-01:00", "01:00-02:00", "02:00-03:00", "03:00-04:00",
  * @returns {number[]} - Number of events
  */
 function getActivity(tl){
-    var buckets = [
+    const buckets = [
         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
     ]
 
-    for(var i = 0; i < tl.length; i++){
+    for(const item of tl){
 
-        if (tl[i].event_type == "Engagement Management") continue; // That's not the attacker working, so we don't want to have it in our histogram
+        if (item.event_type == "Engagement Management") continue; // That's not the attacker working, so we don't want to have it in our histogram
 
-        var date = new Date(tl[i].date_time)
-        hour = date.getHours()
+        const date = new Date(item.date_time)
+        const hour = date.getHours()
         buckets[hour]++
 
     }
@@ -830,10 +834,10 @@ function showActivityPlot(){
     syncAllChanges()
 
     w2ui.main_layout.content('main', '<div style="width:100%;height:100%,position: relative" ><canvas id="chart"></canvas></div>');
-    var chart = document.getElementById('chart');
-    data = getActivity(case_data.timeline)
+    const chart = document.getElementById('chart');
+    const data = getActivity(case_data.timeline)
 
-    var myChart = new Chart(chart, {
+    new Chart(chart, {
         type: 'bar',
         data: {
             labels: timeseries_labels,
@@ -866,13 +870,13 @@ function showActivityPlot(){
  */
 function openImportPopup(fields,content,import_fieldset) {
 
-    records = []
+    const records = []
 
-    firstline = CSVtoArrayEasy(content[0]) //need that for mapping and can?t use it for the editable items as w2ui will mess with it
+    const firstline = CSVtoArrayEasy(content[0]) //need that for mapping and can't use it for the editable items as w2ui will mess with it
 
 
-    for(var i=0; i<fields.length;i++){
-        records.push({recid:records.length+1, csv:"", grid:fields[i],fieldname:import_fieldset[i]})
+    for(const field of fields){
+        records.push({recid:records.length+1, csv:"", grid:field,fieldname:import_fieldset[records.length]})
     }
 
 
@@ -914,7 +918,7 @@ function openImportPopup(fields,content,import_fieldset) {
  * @param grid - w2ui grid object
  */
 function writeprotect_grid(grid) {
-    for (i = 0; i < grid.columns.length; i++){ //disable inline editing for all columns of the grid
+    for (let i = 0; i < grid.columns.length; i++){ //disable inline editing for all columns of the grid
         grid.columns[i].editable = null
     }
     grid.refresh()
@@ -926,7 +930,7 @@ function writeprotect_grid(grid) {
  * @param template - template to get the editables from
  */
 function writeenable_grid(grid, template){
-    for (i = 0; i < grid.columns.length; i++){ //disable inline editing for all columns of the grid
+    for (let i = 0; i < grid.columns.length; i++){ //disable inline editing for all columns of the grid
         grid.columns[i].editable = template.columns[i].editable
     }
     grid.refresh()
@@ -938,7 +942,7 @@ function writeenable_grid(grid, template){
  */
 function deactivate_all_context_items(menu){
     if (menu == null) return;
-    for (i = 0; i < menu.length; i++){
+    for (let i = 0; i < menu.length; i++){
         menu[i].disabled = true
     }
 }
@@ -949,7 +953,7 @@ function deactivate_all_context_items(menu){
  */
 function activate_all_context_items(menu){
     if (menu == null) return;
-    for (i = 0; i < menu.length; i++){
+    for (let i = 0; i < menu.length; i++){
         menu[i].disabled = false
     }
 }

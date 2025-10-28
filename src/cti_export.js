@@ -7,6 +7,7 @@
  * Generate a UUID for STIX objects
  */
 function generateUUID() {
+    // eslint-disable-next-line unicorn/prefer-string-replace-all
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
         const r = Math.trunc(Math.random() * 16);
         const v = c === 'x' ? r : (r & 0x3 | 0x8);
@@ -105,7 +106,7 @@ function createNetworkIndicator(indicator) {
     const labels = [];
     if (indicator.pyramid_pain && case_data.pyramid_levels) {
         const level = case_data.pyramid_levels.find(l => l.id == indicator.pyramid_pain || l.text === indicator.pyramid_pain);
-        if (level) labels.push(`pyramid:${level.text.toLowerCase().replace(/\s+/g, '-')}`);
+        if (level) labels.push(`pyramid:${level.text.toLowerCase().replaceAll(/\s+/g, '-')}`);
     }
 
     return {
@@ -242,9 +243,14 @@ function exportCTIReport() {
 function exportKillChain() {
     syncAllChanges();
 
-    const stages = (typeof ensureKillChainStages === 'function')
-        ? ensureKillChainStages()
-        : (case_data.kill_chain && Array.isArray(case_data.kill_chain.stages) ? case_data.kill_chain.stages : []);
+    let stages;
+    if (typeof ensureKillChainStages === 'function') {
+        stages = ensureKillChainStages();
+    } else if (case_data.kill_chain && Array.isArray(case_data.kill_chain.stages)) {
+        stages = case_data.kill_chain.stages;
+    } else {
+        stages = [];
+    }
 
     const killChainData = {
         case_id: case_data.case_id || "Unknown",

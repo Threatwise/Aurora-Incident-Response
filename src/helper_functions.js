@@ -6,19 +6,8 @@
 const browser_open = function(url){
     const { shell } = require('electron')
     shell.openExternal(url)
-// End of file
-
-/**
- *
- * Return array of string values, or NULL if CSV string not well formed.
- * @param {string} text - csv line
- */
-
-function CSVtoArrayEasy(text){
-
-    return text.split(",")
-
 }
+
 
 /**
  * Duplicate a record from one grid by creating a copy with a new RECID
@@ -151,5 +140,4 @@ function vtCheckFile(recid) {
     } catch (error) {
         logger.error('Error checking file with VirusTotal', { error: error.message, recid });
     }
-}
 }

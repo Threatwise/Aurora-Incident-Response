@@ -2,7 +2,7 @@
  * Build the ATT&CK technique catalogue from the MITRE CTI submodule.
  * Falls back to a concise default set if the dataset cannot be read.
  */
-var mitre_attack_techniques = (function buildMitreTechniqueList() {
+const mitre_attack_techniques = (function buildMitreTechniqueList() {
     const fallback = [
         { id: 'T1003', text: 'Credential Dumping' },
         { id: 'T1021', text: 'Remote Services' },
@@ -14,8 +14,8 @@ var mitre_attack_techniques = (function buildMitreTechniqueList() {
     ]
 
     try {
-        const path = require('path');
-        const fs = require('fs');
+        const path = require('node:path');
+        const fs = require('node:fs');
 
         const datasetPath = path.join(__dirname, '..', 'vendor', 'mitre-cti', 'enterprise-attack', 'enterprise-attack.json')
         if (!fs.existsSync(datasetPath)) {
@@ -33,27 +33,27 @@ var mitre_attack_techniques = (function buildMitreTechniqueList() {
         const seen = new Set()
         const techniques = []
 
-        bundle.objects.forEach(function (object) {
-            if (!object || object.type !== 'attack-pattern') {
-                return
+        for (const object of bundle.objects) {
+            if (object?.type !== 'attack-pattern') {
+                continue
             }
             if (!object.name) {
-                return
+                continue
             }
             if (!Array.isArray(object.external_references)) {
-                return
+                continue
             }
 
             const mitreRef = object.external_references.find(function (ref) {
-                return ref && ref.source_name === 'mitre-attack' && ref.external_id
+                return ref?.source_name === 'mitre-attack' && ref.external_id
             })
             if (!mitreRef) {
-                return
+                continue
             }
 
             const techId = mitreRef.external_id
             if (!techId || seen.has(techId)) {
-                return
+                continue
             }
 
             seen.add(techId)
@@ -61,7 +61,7 @@ var mitre_attack_techniques = (function buildMitreTechniqueList() {
                 id: techId,
                 text: object.name
             })
-        })
+        }
 
         if (techniques.length === 0) {
             console.warn('Aurora ATT&CK catalogue: no attack-pattern entries extracted; falling back to defaults')

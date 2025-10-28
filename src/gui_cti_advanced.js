@@ -31,7 +31,7 @@ function normalizeKillChainValue(value) {
 }
 
 function killChainDomId(stageKey) {
-    return stageKey.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    return stageKey.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-');
 }
 
 function countKillChainEvents(stageKey) {
@@ -49,7 +49,8 @@ function markDirty() {
     try {
         require('electron').remote.getGlobal('Dirty').is_dirty = true;
     } catch (error) {
-        // Ignore if remote is unavailable (should not happen with current configuration)
+        // Remote is unavailable - log for debugging but continue execution
+        console.warn('Unable to mark dirty state:', error.message);
     }
 }
 
@@ -59,39 +60,67 @@ function killChainStageIndex(name) {
 }
 
 function ensureKillChainStages() {
+    initializeKillChainStructure();
+    const stages = case_data.kill_chain.stages;
+    const seen = normalizeExistingStages(stages);
+    addMissingStages(stages, seen);
+    stages.sort((a, b) => killChainStageIndex(a.name) - killChainStageIndex(b.name));
+    return stages;
+}
+
+function initializeKillChainStructure() {
     if (!case_data.kill_chain || typeof case_data.kill_chain !== 'object') {
         case_data.kill_chain = { mode: 'linked', stages: [] };
     }
-
     if (!case_data.kill_chain.mode) {
         case_data.kill_chain.mode = 'linked';
     }
-
     if (!Array.isArray(case_data.kill_chain.stages)) {
         case_data.kill_chain.stages = [];
     }
+}
 
-    const stages = case_data.kill_chain.stages;
+function normalizeExistingStages(stages) {
     const seen = new Set();
-
     for (const stage of stages) {
-        if (!stage || !stage.name) continue;
-        if (LEGACY_KILL_CHAIN_NAME_MAP[stage.name]) {
-            stage.name = LEGACY_KILL_CHAIN_NAME_MAP[stage.name];
-        }
-        if (typeof stage.confidence === 'string') {
-            const numeric = parseInt(stage.confidence, 10);
-            stage.confidence = Number.isNaN(numeric) ? 0 : numeric;
-        } else if (typeof stage.confidence !== 'number') {
-            stage.confidence = 0;
-        }
-        if (!Array.isArray(stage.techniques)) stage.techniques = [];
-        if (!Array.isArray(stage.indicators)) stage.indicators = [];
-        if (!Array.isArray(stage.timeline_refs)) stage.timeline_refs = [];
-        if (typeof stage.notes !== 'string') stage.notes = stage.notes ? String(stage.notes) : '';
+        if (!stage?.name) continue;
+        normalizeStageName(stage);
+        normalizeStageConfidence(stage);
+        normalizeStageArrays(stage);
+        normalizeStageNotes(stage);
         seen.add(stage.name);
     }
+    return seen;
+}
 
+function normalizeStageName(stage) {
+    if (LEGACY_KILL_CHAIN_NAME_MAP[stage.name]) {
+        stage.name = LEGACY_KILL_CHAIN_NAME_MAP[stage.name];
+    }
+}
+
+function normalizeStageConfidence(stage) {
+    if (typeof stage.confidence === 'string') {
+        const numeric = Number.parseInt(stage.confidence, 10);
+        stage.confidence = Number.isNaN(numeric) ? 0 : numeric;
+    } else if (typeof stage.confidence !== 'number') {
+        stage.confidence = 0;
+    }
+}
+
+function normalizeStageArrays(stage) {
+    if (!Array.isArray(stage.techniques)) stage.techniques = [];
+    if (!Array.isArray(stage.indicators)) stage.indicators = [];
+    if (!Array.isArray(stage.timeline_refs)) stage.timeline_refs = [];
+}
+
+function normalizeStageNotes(stage) {
+    if (typeof stage.notes !== 'string') {
+        stage.notes = stage.notes ? String(stage.notes) : '';
+    }
+}
+
+function addMissingStages(stages, seen) {
     for (const config of KILL_CHAIN_STAGE_CONFIG) {
         if (!seen.has(config.key)) {
             stages.push({
@@ -104,10 +133,6 @@ function ensureKillChainStages() {
             });
         }
     }
-
-    stages.sort((a, b) => killChainStageIndex(a.name) - killChainStageIndex(b.name));
-
-    return stages;
 }
 
 function resetKillChainStages() {
@@ -302,211 +327,22 @@ function showMitreHeatmap() {
  */
 function showDiamondModel() {
     syncAllChanges();
-    
+
     const diamond = case_data.diamond_model || { adversary: {}, capability: {}, infrastructure: {}, victim: {} };
-    
+
     let html = `
         <div style="padding: 20px; max-width: 1400px;">
             <h2>Diamond Model Analysis</h2>
             <p style="font-size: 14px; color: #666; margin-bottom: 20px;">
                 Four-facet intrusion analysis framework connecting Adversary, Capability, Infrastructure, and Victim
             </p>
-            
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                
-                <!-- ADVERSARY -->
-                <div style="background: #FFEBEE; border-radius: 8px; padding: 20px; border-left: 4px solid #F44336;">
-                    <h3 style="margin: 0 0 15px 0; color: #D32F2F;">
-                        <i class="fa fa-user-secret"></i> Adversary
-                    </h3>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Threat Actor</label>
-                        <input type="text" id="dm_actor" value="${diamond.adversary.actor || ''}" 
-                               placeholder="e.g., APT29, FIN7" 
-                               onchange="updateDiamondField('adversary', 'actor', this.value)"
-                               style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
-                    </div>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Attribution Confidence</label>
-                        <select id="dm_confidence" onchange="updateDiamondField('adversary', 'confidence', this.value)"
-                                style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
-                            <option value="low" ${diamond.adversary.confidence === 'low' ? 'selected' : ''}>Low</option>
-                            <option value="medium" ${diamond.adversary.confidence === 'medium' ? 'selected' : ''}>Medium</option>
-                            <option value="high" ${diamond.adversary.confidence === 'high' ? 'selected' : ''}>High</option>
-                        </select>
-                    </div>
-                    
-                    <div>
-                        <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Motivation</label>
-                        <select id="dm_motivation" onchange="updateDiamondField('adversary', 'motivation', this.value)"
-                                style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
-                            <option value="" ${!diamond.adversary.motivation ? 'selected' : ''}>Unknown</option>
-                            <option value="financial" ${diamond.adversary.motivation === 'financial' ? 'selected' : ''}>Financial Gain</option>
-                            <option value="espionage" ${diamond.adversary.motivation === 'espionage' ? 'selected' : ''}>Espionage</option>
-                            <option value="disruption" ${diamond.adversary.motivation === 'disruption' ? 'selected' : ''}>Disruption</option>
-                            <option value="ideology" ${diamond.adversary.motivation === 'ideology' ? 'selected' : ''}>Ideology/Hacktivism</option>
-                        </select>
-                    </div>
-                    
-                    <div style="margin-top: 15px;">
-                        <button onclick="viewAdversaryIndicators()" class="w2ui-btn" style="width: 100%; font-size: 12px;">
-                            View Attribution Evidence
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- CAPABILITY -->
-                <div style="background: #FFF3E0; border-radius: 8px; padding: 20px; border-left: 4px solid #FF9800;">
-                    <h3 style="margin: 0 0 15px 0; color: #F57C00;">
-                        <i class="fa fa-wrench"></i> Capability
-                    </h3>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Primary Tools</label>
-                        <div style="font-size: 11px; min-height: 40px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #ddd;">
-                            ${case_data.malware.slice(0, 5).map(m => m.text).join(', ') || 'None identified'}
-                        </div>
-                        <button onclick="w2ui.sidebar.click('malware')" class="w2ui-btn" style="width: 100%; margin-top: 5px; font-size: 11px;">
-                            View All Malware
-                        </button>
-                    </div>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Sophistication</label>
-                        <select id="dm_sophistication" onchange="updateDiamondField('capability', 'sophistication', this.value)"
-                                style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
-                            <option value="low" ${diamond.capability.sophistication === 'low' ? 'selected' : ''}>Low (script kiddie)</option>
-                            <option value="medium" ${diamond.capability.sophistication === 'medium' ? 'selected' : ''}>Medium (commodity tools)</option>
-                            <option value="high" ${diamond.capability.sophistication === 'high' ? 'selected' : ''}>High (custom/advanced)</option>
-                        </select>
-                    </div>
-                    
-                    <div>
-                        <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">TTPs Count</label>
-                        <div style="font-size: 24px; font-weight: bold; color: #FF9800; text-align: center;">
-                            ${Object.keys(analyzeMitreAttack()).length}
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- INFRASTRUCTURE -->
-                <div style="background: #E8F5E9; border-radius: 8px; padding: 20px; border-left: 4px solid #4CAF50;">
-                    <h3 style="margin: 0 0 15px 0; color: #388E3C;">
-                        <i class="fa fa-server"></i> Infrastructure
-                    </h3>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">C2 Servers</label>
-                        <div style="font-size: 11px; min-height: 40px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #ddd;">
-                            ${(case_data.network_indicators || []).slice(0, 5).map(n => n.ip || n.domainname).filter(x => x).join(', ') || 'None identified'}
-                        </div>
-                        <button onclick="w2ui.sidebar.click('network')" class="w2ui-btn" style="width: 100%; margin-top: 5px; font-size: 11px;">
-                            View All Network Indicators
-                        </button>
-                    </div>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Infrastructure Type</label>
-                        <select id="dm_infra_type" onchange="updateDiamondField('infrastructure', 'type', this.value)"
-                                style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
-                            <option value="owned" ${diamond.infrastructure.type === 'owned' ? 'selected' : ''}>Adversary-Owned</option>
-                            <option value="compromised" ${diamond.infrastructure.type === 'compromised' ? 'selected' : ''}>Compromised/Hijacked</option>
-                            <option value="shared" ${diamond.infrastructure.type === 'shared' ? 'selected' : ''}>Shared Hosting</option>
-                            <option value="cloud" ${diamond.infrastructure.type === 'cloud' ? 'selected' : ''}>Cloud Services</option>
-                        </select>
-                    </div>
-                    
-                    <div>
-                        <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Unique IPs</label>
-                        <div style="font-size: 24px; font-weight: bold; color: #4CAF50; text-align: center;">
-                            ${new Set((case_data.network_indicators || []).map(n => n.ip).filter(x => x)).size}
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- VICTIM -->
-                <div style="background: #E3F2FD; border-radius: 8px; padding: 20px; border-left: 4px solid #2196F3;">
-                    <h3 style="margin: 0 0 15px 0; color: #1976D2;">
-                        <i class="fa fa-building"></i> Victim
-                    </h3>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Organization</label>
-                        <input type="text" id="dm_org" value="${diamond.victim.organization || case_data.client || ''}" 
-                               onchange="updateDiamondField('victim', 'organization', this.value)"
-                               style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
-                    </div>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Industry Sector</label>
-                        <select id="dm_sector" onchange="updateDiamondField('victim', 'sector', this.value)"
-                                style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
-                            <option value="">Select sector...</option>
-                            <option value="financial" ${diamond.victim.sector === 'financial' ? 'selected' : ''}>Financial Services</option>
-                            <option value="healthcare" ${diamond.victim.sector === 'healthcare' ? 'selected' : ''}>Healthcare</option>
-                            <option value="government" ${diamond.victim.sector === 'government' ? 'selected' : ''}>Government</option>
-                            <option value="technology" ${diamond.victim.sector === 'technology' ? 'selected' : ''}>Technology</option>
-                            <option value="manufacturing" ${diamond.victim.sector === 'manufacturing' ? 'selected' : ''}>Manufacturing</option>
-                            <option value="education" ${diamond.victim.sector === 'education' ? 'selected' : ''}>Education</option>
-                            <option value="retail" ${diamond.victim.sector === 'retail' ? 'selected' : ''}>Retail</option>
-                        </select>
-                    </div>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Compromised Systems</label>
-                        <div style="font-size: 24px; font-weight: bold; color: #2196F3; text-align: center;">
-                            ${case_data.investigated_systems.filter(s => s.verdict === 'Compromised').length} / ${case_data.investigated_systems.length}
-                        </div>
-                    </div>
-                    
-                    <div>
-                        <button onclick="w2ui.sidebar.click('systems')" class="w2ui-btn" style="width: 100%; font-size: 12px;">
-                            View Affected Systems
-                        </button>
-                    </div>
-                </div>
-                
+                ${diamondAdversaryHtml(diamond)}
+                ${diamondCapabilityHtml(diamond)}
+                ${diamondInfrastructureHtml(diamond)}
+                ${diamondVictimHtml(diamond)}
             </div>
-            
-            <!-- Meta Features -->
-            <div style="background: #F5F5F5; border-radius: 8px; padding: 20px; margin-top: 20px;">
-                <h3 style="margin: 0 0 15px 0; color: #666;">
-                    <i class="fa fa-link"></i> Meta-Features
-                </h3>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
-                    <div>
-                        <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Timestamp</label>
-                        <input type="datetime-local" id="dm_timestamp" value="${diamond.timestamp || ''}"
-                               onchange="case_data.diamond_model.timestamp = this.value"
-                               style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
-                    </div>
-                    
-                    <div>
-                        <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Phase</label>
-                        <select id="dm_phase" onchange="case_data.diamond_model.phase = this.value"
-                                style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
-                            <option value="reconnaissance" ${diamond.phase === 'reconnaissance' ? 'selected' : ''}>Reconnaissance</option>
-                            <option value="exploitation" ${diamond.phase === 'exploitation' ? 'selected' : ''}>Exploitation</option>
-                            <option value="persistence" ${diamond.phase === 'persistence' ? 'selected' : ''}>Persistence</option>
-                            <option value="exfiltration" ${diamond.phase === 'exfiltration' ? 'selected' : ''}>Exfiltration</option>
-                        </select>
-                    </div>
-                    
-                    <div>
-                        <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Result</label>
-                        <select id="dm_result" onchange="case_data.diamond_model.result = this.value"
-                                style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
-                            <option value="success" ${diamond.result === 'success' ? 'selected' : ''}>Success</option>
-                            <option value="failure" ${diamond.result === 'failure' ? 'selected' : ''}>Failure</option>
-                            <option value="unknown" ${diamond.result === 'unknown' ? 'selected' : ''}>Unknown</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            
+            ${diamondMetaFeaturesHtml(diamond)}
             <div style="margin-top: 20px; display: flex; gap: 10px;">
                 <button onclick="autoPopulateDiamond()" class="w2ui-btn w2ui-btn-green">
                     Auto-Populate from Case Data
@@ -518,7 +354,6 @@ function showDiamondModel() {
                     Generate CTI Report
                 </button>
             </div>
-            
             <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 5px;">
                 <strong>Diamond Model Framework:</strong> This analysis connects the four facets of an intrusion. 
                 Changes in any facet can help identify related activity. For example, if the adversary changes their 
@@ -526,8 +361,197 @@ function showDiamondModel() {
             </div>
         </div>
     `;
-    
+
     w2ui.main_layout.content('main', html);
+}
+
+function diamondAdversaryHtml(diamond) {
+    return `
+        <div style="background: #FFEBEE; border-radius: 8px; padding: 20px; border-left: 4px solid #F44336;">
+            <h3 style="margin: 0 0 15px 0; color: #D32F2F;">
+                <i class="fa fa-user-secret"></i> Adversary
+            </h3>
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Threat Actor</label>
+                <input type="text" id="dm_actor" value="${diamond.adversary.actor || ''}"
+                       placeholder="e.g., APT29, FIN7"
+                       onchange="updateDiamondField('adversary', 'actor', this.value)"
+                       style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Attribution Confidence</label>
+                <select id="dm_confidence" onchange="updateDiamondField('adversary', 'confidence', this.value)"
+                        style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+                    <option value="low" ${diamond.adversary.confidence === 'low' ? 'selected' : ''}>Low</option>
+                    <option value="medium" ${diamond.adversary.confidence === 'medium' ? 'selected' : ''}>Medium</option>
+                    <option value="high" ${diamond.adversary.confidence === 'high' ? 'selected' : ''}>High</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Motivation</label>
+                <select id="dm_motivation" onchange="updateDiamondField('adversary', 'motivation', this.value)"
+                        style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+                    ${(() => { const isUnknown = !diamond.adversary.motivation; return `<option value=""${isUnknown ? ' selected' : ''}>Unknown</option>`; })()}
+                    <option value="financial" ${diamond.adversary.motivation === 'financial' ? 'selected' : ''}>Financial Gain</option>
+                    <option value="espionage" ${diamond.adversary.motivation === 'espionage' ? 'selected' : ''}>Espionage</option>
+                    <option value="disruption" ${diamond.adversary.motivation === 'disruption' ? 'selected' : ''}>Disruption</option>
+                    <option value="ideology" ${diamond.adversary.motivation === 'ideology' ? 'selected' : ''}>Ideology/Hacktivism</option>
+                </select>
+            </div>
+            <div style="margin-top: 15px;">
+                <button onclick="viewAdversaryIndicators()" class="w2ui-btn" style="width: 100%; font-size: 12px;">
+                    View Attribution Evidence
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function diamondCapabilityHtml(diamond) {
+    return `
+        <div style="background: #FFF3E0; border-radius: 8px; padding: 20px; border-left: 4px solid #FF9800;">
+            <h3 style="margin: 0 0 15px 0; color: #F57C00;">
+                <i class="fa fa-wrench"></i> Capability
+            </h3>
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Primary Tools</label>
+                <div style="font-size: 11px; min-height: 40px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #ddd;">
+                    ${case_data.malware.slice(0, 5).map(m => m.text).join(', ') || 'None identified'}
+                </div>
+                <button onclick="w2ui.sidebar.click('malware')" class="w2ui-btn" style="width: 100%; margin-top: 5px; font-size: 11px;">
+                    View All Malware
+                </button>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Sophistication</label>
+                <select id="dm_sophistication" onchange="updateDiamondField('capability', 'sophistication', this.value)"
+                        style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+                    <option value="low" ${diamond.capability.sophistication === 'low' ? 'selected' : ''}>Low (script kiddie)</option>
+                    <option value="medium" ${diamond.capability.sophistication === 'medium' ? 'selected' : ''}>Medium (commodity tools)</option>
+                    <option value="high" ${diamond.capability.sophistication === 'high' ? 'selected' : ''}>High (custom/advanced)</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">TTPs Count</label>
+                <div style="font-size: 24px; font-weight: bold; color: #FF9800; text-align: center;">
+                    ${Object.keys(analyzeMitreAttack()).length}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function diamondInfrastructureHtml(diamond) {
+    return `
+        <div style="background: #E8F5E9; border-radius: 8px; padding: 20px; border-left: 4px solid #4CAF50;">
+            <h3 style="margin: 0 0 15px 0; color: #388E3C;">
+                <i class="fa fa-server"></i> Infrastructure
+            </h3>
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">C2 Servers</label>
+                <div style="font-size: 11px; min-height: 40px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #ddd;">
+                    ${(case_data.network_indicators || []).slice(0, 5).map(n => n.ip || n.domainname).filter(Boolean).join(', ') || 'None identified'}
+                </div>
+                <button onclick="w2ui.sidebar.click('network')" class="w2ui-btn" style="width: 100%; margin-top: 5px; font-size: 11px;">
+                    View All Network Indicators
+                </button>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Infrastructure Type</label>
+                <select id="dm_infra_type" onchange="updateDiamondField('infrastructure', 'type', this.value)"
+                        style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+                    <option value="owned" ${diamond.infrastructure.type === 'owned' ? 'selected' : ''}>Adversary-Owned</option>
+                    <option value="compromised" ${diamond.infrastructure.type === 'compromised' ? 'selected' : ''}>Compromised/Hijacked</option>
+                    <option value="shared" ${diamond.infrastructure.type === 'shared' ? 'selected' : ''}>Shared Hosting</option>
+                    <option value="cloud" ${diamond.infrastructure.type === 'cloud' ? 'selected' : ''}>Cloud Services</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Unique IPs</label>
+                <div style="font-size: 24px; font-weight: bold; color: #4CAF50; text-align: center;">
+                    ${new Set((case_data.network_indicators || []).map(n => n.ip).filter(Boolean)).size}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function diamondVictimHtml(diamond) {
+    return `
+        <div style="background: #E3F2FD; border-radius: 8px; padding: 20px; border-left: 4px solid #2196F3;">
+            <h3 style="margin: 0 0 15px 0; color: #1976D2;">
+                <i class="fa fa-building"></i> Victim
+            </h3>
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Organization</label>
+                <input type="text" id="dm_org" value="${diamond.victim.organization || case_data.client || ''}"
+                       onchange="updateDiamondField('victim', 'organization', this.value)"
+                       style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Industry Sector</label>
+                <select id="dm_sector" onchange="updateDiamondField('victim', 'sector', this.value)"
+                        style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+                    <option value="">Select sector...</option>
+                    <option value="financial" ${diamond.victim.sector === 'financial' ? 'selected' : ''}>Financial Services</option>
+                    <option value="healthcare" ${diamond.victim.sector === 'healthcare' ? 'selected' : ''}>Healthcare</option>
+                    <option value="government" ${diamond.victim.sector === 'government' ? 'selected' : ''}>Government</option>
+                    <option value="technology" ${diamond.victim.sector === 'technology' ? 'selected' : ''}>Technology</option>
+                    <option value="manufacturing" ${diamond.victim.sector === 'manufacturing' ? 'selected' : ''}>Manufacturing</option>
+                    <option value="education" ${diamond.victim.sector === 'education' ? 'selected' : ''}>Education</option>
+                    <option value="retail" ${diamond.victim.sector === 'retail' ? 'selected' : ''}>Retail</option>
+                </select>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Compromised Systems</label>
+                <div style="font-size: 24px; font-weight: bold; color: #2196F3; text-align: center;">
+                    ${case_data.investigated_systems.filter(s => s.verdict === 'Compromised').length} / ${case_data.investigated_systems.length}
+                </div>
+            </div>
+            <div>
+                <button onclick="w2ui.sidebar.click('systems')" class="w2ui-btn" style="width: 100%; font-size: 12px;">
+                    View Affected Systems
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function diamondMetaFeaturesHtml(diamond) {
+    return `
+        <div style="background: #F5F5F5; border-radius: 8px; padding: 20px; margin-top: 20px;">
+            <h3 style="margin: 0 0 15px 0; color: #666;">
+                <i class="fa fa-link"></i> Meta-Features
+            </h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                <div>
+                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Timestamp</label>
+                    <input type="datetime-local" id="dm_timestamp" value="${diamond.timestamp || ''}"
+                           onchange="case_data.diamond_model.timestamp = this.value"
+                           style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+                </div>
+                <div>
+                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Phase</label>
+                    <select id="dm_phase" onchange="case_data.diamond_model.phase = this.value"
+                            style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+                        <option value="reconnaissance" ${diamond.phase === 'reconnaissance' ? 'selected' : ''}>Reconnaissance</option>
+                        <option value="exploitation" ${diamond.phase === 'exploitation' ? 'selected' : ''}>Exploitation</option>
+                        <option value="persistence" ${diamond.phase === 'persistence' ? 'selected' : ''}>Persistence</option>
+                        <option value="exfiltration" ${diamond.phase === 'exfiltration' ? 'selected' : ''}>Exfiltration</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 3px;">Result</label>
+                    <select id="dm_result" onchange="case_data.diamond_model.result = this.value"
+                            style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+                        <option value="success" ${diamond.result === 'success' ? 'selected' : ''}>Success</option>
+                        <option value="failure" ${diamond.result === 'failure' ? 'selected' : ''}>Failure</option>
+                        <option value="unknown" ${diamond.result === 'unknown' ? 'selected' : ''}>Unknown</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 /**
@@ -561,7 +585,7 @@ function autoPopulateDiamond() {
     };
     
     // Capability facet
-    const malwareTools = case_data.malware.map(m => m.text).filter(x => x);
+    const malwareTools = case_data.malware.map(m => m.text).filter(Boolean);
     case_data.diamond_model.capability = {
         tools: malwareTools,
         tool_count: malwareTools.length,
@@ -571,8 +595,8 @@ function autoPopulateDiamond() {
     
     // Infrastructure facet
     const networkIndicators = Array.isArray(case_data.network_indicators) ? case_data.network_indicators : [];
-    const uniqueIPs = [...new Set(networkIndicators.map(n => n.ip).filter(x => x))];
-    const uniqueDomains = [...new Set(networkIndicators.map(n => n.domainname).filter(x => x))];
+    const uniqueIPs = [...new Set(networkIndicators.map(n => n.ip).filter(Boolean))];
+    const uniqueDomains = [...new Set(networkIndicators.map(n => n.domainname).filter(Boolean))];
     case_data.diamond_model.infrastructure = {
         ip_addresses: uniqueIPs,
         domains: uniqueDomains,
@@ -583,7 +607,7 @@ function autoPopulateDiamond() {
     
     // Adversary facet - keep existing if set
     if (!case_data.diamond_model.adversary.actor) {
-        const attributions = [...new Set(case_data.timeline.map(e => e.attribution).filter(x => x))];
+        const attributions = [...new Set(case_data.timeline.map(e => e.attribution).filter(Boolean))];
         case_data.diamond_model.adversary = {
             actor: attributions[0] || '',
             confidence: case_data.diamond_model.adversary?.confidence || 'low',
@@ -722,6 +746,14 @@ function showCTIMode() {
                         target_profile: 'Victim profile matches actor\'s targeting preferences'
                     };
                     const value = indicators[indicator] || 0;
+                    let color;
+                    if (value >= 7) {
+                        color = '#4CAF50';
+                    } else if (value >= 4) {
+                        color = '#FF9800';
+                    } else {
+                        color = '#F44336';
+                    }
                     
                     return `
                         <div style="margin-bottom: 20px;">
@@ -730,7 +762,7 @@ function showCTIMode() {
                                     <strong style="font-size: 14px;">${labels[indicator]}</strong>
                                     <div style="font-size: 11px; color: #999; margin-top: 2px;">${descriptions[indicator]}</div>
                                 </div>
-                                <div style="font-size: 20px; font-weight: bold; color: ${value >= 7 ? '#4CAF50' : value >= 4 ? '#FF9800' : '#F44336'}; min-width: 40px; text-align: right;">
+                                <div style="font-size: 20px; font-weight: bold; color: ${color}; min-width: 40px; text-align: right;">
                                     ${value}
                                 </div>
                             </div>
@@ -757,9 +789,17 @@ function showCTIMode() {
             
             <div style="margin-top: 20px; padding: 15px; background: ${confidenceColor}20; border-radius: 5px; border-left: 4px solid ${confidenceColor};">
                 <strong>Confidence Assessment:</strong>
-                ${avgScore >= 7 ? 'Strong evidence supports attribution. Multiple independent indicators align with known actor profile.' :
-                  avgScore >= 4 ? 'Moderate evidence present. Some indicators match but additional validation recommended.' :
-                  'Weak evidence. Attribution uncertain - more indicators needed or consider alternative actors.'}
+                ${(() => {
+                    let assessment;
+                    if (avgScore >= 7) {
+                        assessment = 'Strong evidence supports attribution. Multiple independent indicators align with known actor profile.';
+                    } else if (avgScore >= 4) {
+                        assessment = 'Moderate evidence present. Some indicators match but additional validation recommended.';
+                    } else {
+                        assessment = 'Weak evidence. Attribution uncertain - more indicators needed or consider alternative actors.';
+                    }
+                    return assessment;
+                })()}
             </div>
         </div>
     `;
@@ -796,7 +836,7 @@ function updateCTIIndicator(indicator, value) {
     if (!case_data.cti_mode.indicators) {
         case_data.cti_mode.indicators = { ttp_match: 0, tool_match: 0, infrastructure_match: 0, timing_pattern: 0, target_profile: 0 };
     }
-    case_data.cti_mode.indicators[indicator] = parseInt(value);
+    case_data.cti_mode.indicators[indicator] = Number.parseInt(value);
 
     // Update overall score
     const indicators = case_data.cti_mode.indicators;
@@ -942,7 +982,7 @@ function updateKillChainStage(stageKey, confidence) {
     const stages = ensureKillChainStages();
     const stage = stages.find(s => s.name === stageKey);
     if (!stage) return;
-    stage.confidence = parseInt(confidence, 10) || 0;
+    stage.confidence = Number.parseInt(confidence, 10) || 0;
     const label = document.getElementById(`conf_val_${killChainDomId(stageKey)}`);
     if (label) label.textContent = `${stage.confidence}%`;
     markDirty();

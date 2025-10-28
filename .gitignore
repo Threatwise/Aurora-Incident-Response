@@ -26,3 +26,4 @@ npm-debug.log*
 .github/instructions/snyk_rules.instructions.md
 .sonarlint/connectedMode.json
 .vscode/settings.json
+run_sonarqube_analysis.sh

@@ -1,9 +1,9 @@
 function misp_connection_test(){
 
 
-    mispserver = w2ui.case_form.record['mispserver']
-    mispapikey = w2ui.case_form.record['mispapikey']
-    mispeventid = w2ui.case_form.record['mispeventid']
+    const mispserver = w2ui.case_form.record['mispserver']
+    const mispapikey = w2ui.case_form.record['mispapikey']
+    const mispeventid = w2ui.case_form.record['mispeventid']
 
     $.ajaxSetup({
         headers:{
@@ -13,7 +13,7 @@ function misp_connection_test(){
         }
     });
 
-    url = mispserver+"/events/"+mispeventid
+    const url = mispserver+"/events/"+mispeventid
 
     $.ajax(url,
         {
@@ -29,7 +29,7 @@ function misp_connection_test(){
 
                 if(xhr.status == 403) {
 
-                    var details = ""
+                    let details = ""
                     if(xhr.responseJSON.errors) details = xhr.responseJSON.errors.value[0]
                     alert(xhr.responseJSON.message +" "+ details)
                     return
@@ -46,7 +46,6 @@ function misp_connection_test(){
                 }
 
                 alert("Connection Error! Check Server Address.")
-                return
             }
         });
 
@@ -56,14 +55,14 @@ function misp_connection_test(){
 /**
  * Add selected attributes to misp
  * @param grid - source grid
- * @param selection - selection array
  */
-function add_attributes_misp(grid,selection){ //TODO: get rid oof selectioon and get it from grid object in this function
+function add_attributes_misp(grid){
 
     grid.save()
-    mispserver = case_data.mispserver
-    mispapikey = case_data.mispapikey
-    mispeventid = case_data.mispeventid
+    const selection = grid.getSelection()
+    const mispserver = case_data.mispserver
+    const mispapikey = case_data.mispapikey
+    const mispeventid = case_data.mispeventid
 
     if(!(mispserver && mispapikey && mispeventid)){
         alert("Please configure correct MISP creds under Case Details first.")
@@ -72,14 +71,14 @@ function add_attributes_misp(grid,selection){ //TODO: get rid oof selectioon and
     // That's how a misp event looks like
     //{"value":"1.2.3.4","type":"ip-dst"}
 
-    misp_object = []
-    for(var i=0; i< selection.length; i++){
+    const misp_object = []
+    for(const selectionItem of selection){
 
-        var record = grid.get(selection[i])
+        const record = grid.get(selectionItem)
 
-        comment = ""
+        let comment = ""
         if(record.comment) comment = record.comment
-        var entry = {"value":String(record.value),"type":String(record.misp_field_type),"comment":comment}
+        const entry = {"value":String(record.value),"type":String(record.misp_field_type),"comment":comment}
         misp_object.push(entry)
 
     }
@@ -99,7 +98,7 @@ function add_attributes_misp(grid,selection){ //TODO: get rid oof selectioon and
 
 
 
-    url = mispserver+"/attributes/add/"+mispeventid
+    const url = mispserver+"/attributes/add/"+mispeventid
 
     $.ajax(url,
         {
@@ -121,7 +120,7 @@ function add_attributes_misp(grid,selection){ //TODO: get rid oof selectioon and
 
                 if(xhr.status == 403) {
 
-                    var details = ""
+                    let details = ""
                     if(xhr.responseJSON.errors) details = xhr.responseJSON.errors.value[0]
                     alert(xhr.responseJSON.message +" "+ details)
                     return
@@ -138,8 +137,8 @@ function add_attributes_misp(grid,selection){ //TODO: get rid oof selectioon and
                 }
 
                 alert("Connection Error! Check Server Address.")
-                return
             }
+
         });
 
 }

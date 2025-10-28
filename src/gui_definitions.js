@@ -69,7 +69,7 @@ const config = {
         fields: [
             { name: 'caseid',  type: 'text', html: { caption: 'Case ID', attr: 'size="15"' } },
             { name: 'client', type: 'text', required: true, html: { caption: 'Client', attr:  'maxlength="40"' } },
-            { name: 'start_date', type: 'text', required: true,  type: 'date' ,html: { caption: 'Engagement start' }},
+            { name: 'start_date', required: true,  type: 'date' ,html: { caption: 'Engagement start' }},
             { name: 'summary', type: 'textarea', html: { caption: 'Summary', attr: 'wdith="200px" height="150px" maxlength="600"'  } },
             { name: 'mispserver', type: 'text', required: false },
             { name: 'mispapikey', type: 'text', required: false},
@@ -82,8 +82,10 @@ const config = {
             { id: 'tab_vt', caption: 'Virustotal'},
         ],
     },
-    webdav_form: { //TODO: Refactor using a template
+    webdav_form: {
+        header: 'WebDAV Connection',
         name: 'webdav_form',
+        formURL: './templates/webdav_form.html',
         fields: [
             { name: 'server',  type: 'text', html: { caption: 'Webdav Directory URL', attr: 'size="40"' } },
         ],
@@ -337,8 +339,8 @@ const config = {
             { field: 'md5', sortable: true,caption: 'Hash', size: '60px' , editable: { type: 'text', min: 32, max: 128 }},
             { field: 'vt', sortable: true,caption: 'vt', size: '20px',
                 render: function(record){
-                    icon = "unknown.png"
-                    caption = "Not checked"
+                    let icon = "unknown.png"
+                    let caption = "Not checked"
 
                     if(record.vt == "infected") {
                         icon="virus.png"
@@ -352,7 +354,7 @@ const config = {
                         icon="no_results.png"
                         caption = "No results on VT"
                     }
-                    html = '<img src="./img/'+icon+'" alt="'+caption+'" style="width:16px;height:16px" >'
+                    let html = '<img src="./img/'+icon+'" alt="'+caption+'" style="width:16px;height:16px" >'
                     return html
                 }
             },
@@ -407,7 +409,7 @@ const config = {
             { field: 'attribution', caption: 'Attribution', type: 'text' },
         ],
         columns: [
-            { field: 'date_added', sortable: true,caption: 'Date added', render:'date:YYYY-MM-DD' , type:'date', size: '80px',sortable: true },
+            { field: 'date_added', sortable: true,caption: 'Date added', render:'date:YYYY-MM-DD' , type:'date', size: '80px' },
             { field: 'account_name', sortable: true,caption: 'Account Name', size: '120px', editable: { type: 'text', min: 0, max: 100 } },
             { field: 'domain', sortable: true,caption: 'Account Domain', size: '120px' , editable: { type: 'text', min: 0, max: 80 }},
             { field: 'sid', sortable: true,caption: 'SID', size: '200px',  editable: { type: 'text', min: 0, max: 80 }},
@@ -565,7 +567,6 @@ const config = {
                     } catch {
                         return `<span style="color:red">${safeHtml}</span> (Invalid URL)`
                     }
-                    //return "<a href=\"javascript:browser_open('"+html+"')\">"+html+"</a>" || '';
                 }
             },
             { field: 'desc', sortable: true,caption: 'Description' ,size:"100%", editable: { type: 'text'  } },
@@ -691,7 +692,7 @@ const config = {
             { field: 'location', caption: 'Location', type: 'text' },
         ],
         columns: [
-            { field: 'date_acquired', sortable: true,caption: 'Date Acquired', editable: { type: 'datetime' } , type:'date', size: '130px',sortable: true },
+            { field: 'date_acquired', sortable: true,caption: 'Date Acquired', editable: { type: 'datetime' } , type:'date', size: '130px' },
             { field: 'type',sortable: true, caption: 'Type', size: '125px', editable: { type: 'list', items: case_data.evidence_types, showAll: true ,  match: 'contains' }
             },
             { field: 'name',sortable: true, caption: 'Name', size: '130px', editable: { type: 'text'}  },
@@ -841,7 +842,7 @@ const config = {
 /**
  * Content for about popup
  */
-about_content = `
+const about_content = `
 
     <div id="aboutcontent" style="position: absolute; left: 5px; top: 5px; right: 5px; bottom: 5px;">
     <p>Aurora 0.6.6</p>
@@ -882,7 +883,7 @@ function renderSafe(record,index,col_index)
 for(const grid in config)
 {
     const grd = config[grid]
-    if(grd != undefined && grd.columns != undefined)
+    if(grd?.columns)
     {
         for(const field of grd.columns)
         {
