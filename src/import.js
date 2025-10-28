@@ -32,6 +32,12 @@ function show_import_dialog(grid){
 
     filebuffer= filebuffer.toString()
     import_lines = filebuffer.split(/(?:\r\n|\n)+/)
+
+    // Store first line for column mapping
+    if (import_lines.length > 0) {
+        firstline = CSVtoArrayEasy(import_lines[0]);
+    }
+
     w2utils.unlock($( "#main" ))
     openImportPopup(fieldset,import_lines,import_fieldset)
 

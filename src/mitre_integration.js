@@ -13,8 +13,8 @@ let mitre_techniques_cache = null;
  */
 const loadMitreAttackData = () => {
     try {
-        const fs = require('fs');
-        const path = require('path');
+        const fs = require('node:fs');
+        const path = require('node:path');
 
         logger.info('Loading MITRE ATT&CK data');
 
@@ -79,9 +79,9 @@ const buildTechniqueCache = () => {
         const techniques = mitre_enterprise_data.objects
             .filter(obj => obj.type === 'attack-pattern' && !obj.revoked && !obj.x_mitre_deprecated);
 
-        techniques.forEach(technique => {
+        for (const technique of techniques) {
             const extRef = technique.external_references?.find(ref => ref.source_name === 'mitre-attack');
-            if (!extRef) return;
+            if (!extRef) continue;
 
             const id = extRef.external_id;
             mitre_techniques_cache[id] = {
@@ -95,7 +95,7 @@ const buildTechniqueCache = () => {
                 is_subtechnique: id.includes('.'),
                 url: extRef.url || ''
             };
-        });
+        }
 
         logger.info(`Built MITRE ATT&CK technique cache`, {
             techniqueCount: Object.keys(mitre_techniques_cache).length
@@ -133,7 +133,7 @@ function getMitreTactics() {
     if (!mitre_enterprise_data) return [];
     
     const matrix = mitre_enterprise_data.objects.find(obj => obj.type === 'x-mitre-matrix');
-    if (!matrix || !matrix.tactic_refs) return [];
+    if (!matrix?.tactic_refs) return [];
     
     return matrix.tactic_refs.map(ref => {
         const tactic = mitre_enterprise_data.objects.find(obj => obj.id === ref);
@@ -179,7 +179,7 @@ function suggestTechniquesFromIndicators() {
     
     // Check malware/tools for technique hints
     if (case_data.malware) {
-        case_data.malware.forEach(malware => {
+        for (const malware of case_data.malware) {
             const name = (malware.text || '').toLowerCase();
             const path = (malware.path_on_disk || '').toLowerCase();
             
@@ -203,12 +203,12 @@ function suggestTechniquesFromIndicators() {
             if (name.includes('cmd.exe') || name.includes('cmd ')) {
                 suggestions.add('T1059.003'); // Windows Command Shell
             }
-        });
+        }
     }
     
     // Check network indicators for C2 patterns
     if (case_data.network_indicators) {
-        case_data.network_indicators.forEach(indicator => {
+        for (const indicator of case_data.network_indicators) {
             const context = (indicator.context || '').toLowerCase();
             
             if (context.includes('c2') || context.includes('command')) {
@@ -224,7 +224,7 @@ function suggestTechniquesFromIndicators() {
             if (indicator.port === 3389) {
                 suggestions.add('T1021.001'); // Remote Desktop Protocol
             }
-        });
+        }
     }
     
     return Array.from(suggestions);
@@ -242,6 +242,6 @@ function getMitreTechniquesForDropdown() {
 }
 
 // Auto-load on startup (if in browser context)
-if (typeof window !== 'undefined') {
-    window.addEventListener('load', loadMitreAttackData);
+if (typeof globalThis.window !== 'undefined') {
+    globalThis.window.addEventListener('load', loadMitreAttackData);
 }
