@@ -3,7 +3,7 @@
  * Opens a web url in an external browser window rather than in the electron app.
  * @param {string} url - url to open in external browser windows
  */
-browser_open =function(url){
+const browser_open = function(url){
     const { shell } = require('electron')
     shell.openExternal(url)
 }
@@ -15,28 +15,44 @@ browser_open =function(url){
  * @param {string} text - csv line
  */
 function CSVtoArray(text) {
-    var re_valid = /^\s*(?:'[^'\\]*(?:\\[\S\s][^'\\]*)*'|"[^"\\]*(?:\\[\S\s][^"\\]*)*"|[^,'"\s\\]*(?:\s+[^,'"\s\\]+)*)\s*(?:,\s*(?:'[^'\\]*(?:\\[\S\s][^'\\]*)*'|"[^"\\]*(?:\\[\S\s][^"\\]*)*"|[^,'"\s\\]*(?:\s+[^,'"\s\\]+)*)\s*)*$/;
-    var re_value = /(?!\s*$)\s*(?:'([^'\\]*(?:\\[\S\s][^'\\]*)*)'|"([^"\\]*(?:\\[\S\s][^"\\]*)*)"|([^,'"\s\\]*(?:\s+[^,'"\s\\]+)*))\s*(?:,|$)/g;
+    // Simplified CSV parser to avoid regex complexity issues
+    // Handles basic quoted fields and commas
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    let quoteChar = '';
 
-    // Return NULL if input string is not well formed CSV string.
-    if (!re_valid.test(text)) return null;
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
 
-    var a = []; // Initialize array to receive values.
-    text.replace(re_value, // "Walk" the string using replace with callback.
-        function(m0, m1, m2, m3) {
+        if (!inQuotes && (char === '"' || char === "'")) {
+            // Start of quoted field
+            inQuotes = true;
+            quoteChar = char;
+        } else if (inQuotes && char === quoteChar) {
+            if (nextChar === quoteChar) {
+                // Escaped quote
+                current += char;
+                i++; // Skip next quote
+            } else {
+                // End of quoted field
+                inQuotes = false;
+                quoteChar = '';
+            }
+        } else if (!inQuotes && char === ',') {
+            // Field separator
+            result.push(current.trim());
+            current = '';
+        } else {
+            current += char;
+        }
+    }
 
-            // Remove backslash from \' in single quoted values.
-            if (m1 !== undefined) a.push(m1.replace(/\\'/g, "'"));
+    // Add the last field
+    result.push(current.trim());
 
-            // Remove backslash from \" in double quoted values.
-            else if (m2 !== undefined) a.push(m2.replace(/\\"/g, '"'));
-            else if (m3 !== undefined) a.push(m3);
-            return ''; // Return empty string.
-        });
-
-    // Handle special case of empty last value.
-    if (/,\s*$/.test(text)) a.push('');
-    return a;
+    return result;
 }
 
 function CSVtoArrayEasy(text){
