@@ -1,6 +1,6 @@
 // Main Data Template for new files
 
-const storage_format_version = 9
+const storage_format_version = 10
 
 const data_template  = {
     "storage_format_version": storage_format_version,
@@ -22,6 +22,13 @@ const data_template  = {
     "evidence":[],
     "actions":[],
     "casenotes":[],
+    "email":[],
+    "files":[],
+    "processes":[],
+    "web_activity":[],
+    "persistence":[],
+    "threat_intel":[],
+    "campaigns":[],
     "attack_techniques": mitre_attack_techniques,
     "event_types":[
         {id:1,text:"EventLog"},
@@ -148,12 +155,12 @@ const data_template  = {
         "mode": "linked",
         "stages": [
             {
-                "name": "Reconnaissance",
+                "name": "Recon",
                 "techniques": [],
                 "indicators": [],
                 "notes": "",
                 "timeline_refs": [],
-                "confidence": "Unknown"
+                "confidence": 0
             },
             {
                 "name": "Weaponization",
@@ -161,7 +168,7 @@ const data_template  = {
                 "indicators": [],
                 "notes": "",
                 "timeline_refs": [],
-                "confidence": "Unknown"
+                "confidence": 0
             },
             {
                 "name": "Delivery",
@@ -169,7 +176,7 @@ const data_template  = {
                 "indicators": [],
                 "notes": "",
                 "timeline_refs": [],
-                "confidence": "Unknown"
+                "confidence": 0
             },
             {
                 "name": "Exploitation",
@@ -177,7 +184,7 @@ const data_template  = {
                 "indicators": [],
                 "notes": "",
                 "timeline_refs": [],
-                "confidence": "Unknown"
+                "confidence": 0
             },
             {
                 "name": "Installation",
@@ -185,23 +192,23 @@ const data_template  = {
                 "indicators": [],
                 "notes": "",
                 "timeline_refs": [],
-                "confidence": "Unknown"
+                "confidence": 0
             },
             {
-                "name": "Command & Control",
+                "name": "C2",
                 "techniques": [],
                 "indicators": [],
                 "notes": "",
                 "timeline_refs": [],
-                "confidence": "Unknown"
+                "confidence": 0
             },
             {
-                "name": "Actions on Objectives",
+                "name": "Actions on Obj.",
                 "techniques": [],
                 "indicators": [],
                 "notes": "",
                 "timeline_refs": [],
-                "confidence": "Unknown"
+                "confidence": 0
             }
         ]
     },
