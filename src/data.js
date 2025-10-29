@@ -461,16 +461,31 @@ function saveSODFile(){
     syncAllChanges()
     case_data.storage_format_version=storage_format_version
     if(currentfile == "") {
-        const {remote} = require('electron')
-        const {dialog} = remote
-        const selectedPaths = dialog.showSaveDialog({filters: [{name: "Case File", extensions: ["fox"]}]});
-        if (selectedPaths == undefined) {
+        // Use electronAPI instead of deprecated remote module
+        globalThis.electronAPI.showSaveDialog({filters: [{name: "Case File", extensions: ["fox"]}]})
+            .then(result => {
+                if (result.canceled || !result.filePath) {
+                    w2alert('Could not save case.');
+                    return false;
+                }
+                currentfile = result.filePath;
 
-            w2alert('Could not save case.');
-            return false
+                const fs = require('node:fs');
+                w2utils.lock($( "#main" ),"Saving file...",true)
+                const buffer = Buffer.from(JSON.stringify(case_data,null, "\t"));
+                fs.writeFileSync(currentfile.toString(), buffer);
+                w2utils.unlock($( "#main" ))
+                w2ui.sidebar.bottomHTML = '<div id="lock" style="background-color: #eee; padding: 10px 5px; border-top: 1px solid silver">'+lockstate+'</div>'
+                w2ui.sidebar.refresh()
 
-        }
-        currentfile = selectedPaths
+                return true;
+            })
+            .catch(error => {
+                console.error('[SaveSOD] Error showing save dialog:', error);
+                w2alert('Could not save case.');
+                return false;
+            });
+        return; // Early return since we're handling async
     }
 
     const fs = require('node:fs');
@@ -490,87 +505,91 @@ function saveSODFile(){
 function openSODFile() {
     w2confirm('Are you sure you want to open a SOD? All unsaved data in the current one will be lost.', function btn(answer) {
         if (answer == "Yes") {
-            const {remote} = require('electron')
-            const {dialog} = remote
-            const path = dialog.showOpenDialog({filters:[{name:"Case File",extensions:["fox"]}]});
+            // Use electronAPI instead of deprecated remote module
+            globalThis.electronAPI.showOpenDialog({filters:[{name:"Case File",extensions:["fox"]}]})
+                .then(result => {
+                    if(result.canceled || !result.filePaths || result.filePaths.length === 0) return;
 
-            if(path == undefined) return;
-            currentfile = path
+                    const path = result.filePaths[0];
+                    currentfile = path;
 
-            const fs = require('node:fs');
+                    const fs = require('node:fs');
 
-            const filebuffer = fs.readFileSync(path.toString());
-            case_data = JSON.parse(filebuffer);
+                    const filebuffer = fs.readFileSync(path.toString());
+                    case_data = JSON.parse(filebuffer);
 
-            if(case_data.hasOwnProperty(storage_format_version) && case_data.storage_format_version < storage_format_version){
-                w2alert("You are opening a file created with a newer version of Aurora IR. Please upgrade to the newest version of Aurora IR and try again")
-                return
-            }
+                    if(case_data.hasOwnProperty(storage_format_version) && case_data.storage_format_version < storage_format_version){
+                        w2alert("You are opening a file created with a newer version of Aurora IR. Please upgrade to the newest version of Aurora IR and try again")
+                        return
+                    }
 
-            if(case_data.storage_format_version< storage_format_version){
-                updateVersion(case_data.storage_format_version)
-            }
+                    if(case_data.storage_format_version< storage_format_version){
+                        updateVersion(case_data.storage_format_version)
+                    }
 
-            w2ui.grd_timeline.records = case_data.timeline
-            w2ui.grd_timeline.refresh()
-            w2ui.grd_investigated_systems.records = case_data.investigated_systems
-            w2ui.grd_investigated_systems.refresh()
-            w2ui.grd_malware.records = case_data.malware
-            w2ui.grd_malware.refresh()
-            w2ui.grd_accounts.records = case_data.compromised_accounts
-            w2ui.grd_accounts.refresh()
-            w2ui.grd_network.records = case_data.network_indicators
-            w2ui.grd_network.refresh()
-            w2ui.grd_exfiltration.records = case_data.exfiltration
-            w2ui.grd_exfiltration.refresh()
-            w2ui.grd_osint.records = case_data.osint
-            w2ui.grd_osint.refresh()
-            w2ui.grd_systems.records = case_data.systems
-            w2ui.grd_systems.refresh()
-            w2ui.grd_actions.records = case_data.actions
-            w2ui.grd_actions.refresh()
-            w2ui.grd_evidence.records = case_data.evidence
-            w2ui.grd_evidence.refresh()
-            w2ui.grd_investigators.records = case_data.investigators
-            w2ui.grd_investigators.refresh()
-            w2ui.grd_casenotes.records = case_data.casenotes
-            w2ui.grd_casenotes.refresh()
-            w2ui.grd_email.records = case_data.email || []
-            w2ui.grd_email.refresh()
-            w2ui.grd_files.records = case_data.files || []
-            w2ui.grd_files.refresh()
-            w2ui.grd_processes.records = case_data.processes || []
-            w2ui.grd_processes.refresh()
-            w2ui.grd_web_activity.records = case_data.web_activity || []
-            w2ui.grd_web_activity.refresh()
-            w2ui.grd_persistence.records = case_data.persistence || []
-            w2ui.grd_persistence.refresh()
-            w2ui.grd_threat_intel.records = case_data.threat_intel || []
-            w2ui.grd_threat_intel.refresh()
-            w2ui.grd_campaigns.records = case_data.campaigns || []
-            w2ui.grd_campaigns.refresh()
+                    w2ui.grd_timeline.records = case_data.timeline
+                    w2ui.grd_timeline.refresh()
+                    w2ui.grd_investigated_systems.records = case_data.investigated_systems
+                    w2ui.grd_investigated_systems.refresh()
+                    w2ui.grd_malware.records = case_data.malware
+                    w2ui.grd_malware.refresh()
+                    w2ui.grd_accounts.records = case_data.compromised_accounts
+                    w2ui.grd_accounts.refresh()
+                    w2ui.grd_network.records = case_data.network_indicators
+                    w2ui.grd_network.refresh()
+                    w2ui.grd_exfiltration.records = case_data.exfiltration
+                    w2ui.grd_exfiltration.refresh()
+                    w2ui.grd_osint.records = case_data.osint
+                    w2ui.grd_osint.refresh()
+                    w2ui.grd_systems.records = case_data.systems
+                    w2ui.grd_systems.refresh()
+                    w2ui.grd_actions.records = case_data.actions
+                    w2ui.grd_actions.refresh()
+                    w2ui.grd_evidence.records = case_data.evidence
+                    w2ui.grd_evidence.refresh()
+                    w2ui.grd_investigators.records = case_data.investigators
+                    w2ui.grd_investigators.refresh()
+                    w2ui.grd_casenotes.records = case_data.casenotes
+                    w2ui.grd_casenotes.refresh()
+                    w2ui.grd_email.records = case_data.email || []
+                    w2ui.grd_email.refresh()
+                    w2ui.grd_files.records = case_data.files || []
+                    w2ui.grd_files.refresh()
+                    w2ui.grd_processes.records = case_data.processes || []
+                    w2ui.grd_processes.refresh()
+                    w2ui.grd_web_activity.records = case_data.web_activity || []
+                    w2ui.grd_web_activity.refresh()
+                    w2ui.grd_persistence.records = case_data.persistence || []
+                    w2ui.grd_persistence.refresh()
+                    w2ui.grd_threat_intel.records = case_data.threat_intel || []
+                    w2ui.grd_threat_intel.refresh()
+                    w2ui.grd_campaigns.records = case_data.campaigns || []
+                    w2ui.grd_campaigns.refresh()
 
-            w2ui['grd_timeline'].getColumn('owner').editable.items = case_data.investigators
-            w2ui.grd_timeline.getColumn('event_host').editable.items = case_data.systems
-            w2ui.grd_timeline.getColumn('event_source_host').editable.items = case_data.systems
+                    w2ui['grd_timeline'].getColumn('owner').editable.items = case_data.investigators
+                    w2ui.grd_timeline.getColumn('event_host').editable.items = case_data.systems
+                    w2ui.grd_timeline.getColumn('event_source_host').editable.items = case_data.systems
 
-            w2ui.main_layout.content('main', w2ui.grd_timeline);
-            w2ui.sidebar.select('timeline')
+                    w2ui.main_layout.content('main', w2ui.grd_timeline);
+                    w2ui.sidebar.select('timeline')
 
-            // check if its locked
-            if (case_data.locked){
-                w2alert("The SOD is locked by another analyst. Opening in Readonly mode.")
-                lockedByMe = false
-                activateReadOnly()
-                stopAutoSave()
-                startAutoUpdate()
-            }
-            else {
+                    // check if its locked
+                    if (case_data.locked){
+                        w2alert("The SOD is locked by another analyst. Opening in Readonly mode.")
+                        lockedByMe = false
+                        activateReadOnly()
+                        stopAutoSave()
+                        startAutoUpdate()
+                    }
+                    else {
+                        requestLock(true)
+                    }
 
-                requestLock(true)
-            }
-
-            w2ui.main_layout.content('main', w2ui.grd_timeline);
+                    w2ui.main_layout.content('main', w2ui.grd_timeline);
+                })
+                .catch(error => {
+                    console.error('[OpenSOD] Error opening file:', error);
+                });
         }
     });
 }
@@ -821,20 +840,19 @@ function _updateSystemsExfil(old_system, new_system) {
 ///// IPC /////
 ///////////////
 
-function cleanup (){
+async function cleanup (){
 
     if(case_data.locked && lockedByMe){
         case_data.locked=false
         saveSOD()
-        const remote = require('electron').remote
-        remote.getGlobal('Dirty').is_dirty = false   // file on drive/server is unlocked again
-        let w = remote.getCurrentWindow()
-        w.close()
-    } else {
-        const remote = require('electron').remote
-        remote.getGlobal('Dirty').is_dirty = false   // file on drive/server is unlocked again
-        let w = remote.getCurrentWindow()
-        w.close()
+    }
+
+    // Use electronAPI instead of deprecated remote module
+    try {
+        await globalThis.electronAPI.setDirty(false);
+        await globalThis.electronAPI.closeWindow();
+    } catch (error) {
+        console.error('[Cleanup] Error during cleanup:', error);
     }
 
 }

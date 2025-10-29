@@ -47,9 +47,16 @@ function countKillChainEvents(stageKey) {
 
 function markDirty() {
     try {
-        require('electron').remote.getGlobal('Dirty').is_dirty = true;
+        // Use electronAPI instead of deprecated remote module
+        if (globalThis?.electronAPI?.setDirty) {
+            globalThis.electronAPI.setDirty(true).catch(error => {
+                console.warn('Unable to mark dirty state:', error.message);
+            });
+        } else {
+            console.warn('electronAPI not available for marking dirty state');
+        }
     } catch (error) {
-        // Remote is unavailable - log for debugging but continue execution
+        // Log for debugging but continue execution
         console.warn('Unable to mark dirty state:', error.message);
     }
 }
