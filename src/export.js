@@ -372,10 +372,16 @@ function generateUUID() {
         )
     } catch (err) {
         console.error('Failed to generate UUID using crypto:', err)
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replaceAll(/[xy]/g, function (c) {
-            const r = Math.trunc(Math.random() * 16)
-            const v = c === 'x' ? r : (r & 0x3 | 0x8)
-            return v.toString(16)
-        })
+        // Fallback UUID generator: does NOT guarantee uniqueness or cryptographic randomness.
+        // Use only for non-security-critical purposes.
+        console.warn('WARNING: Using fallback UUID generator. This does NOT guarantee uniqueness or cryptographic randomness. Do not use for security-critical purposes.')
+        // Use String#replaceAll for simple character replacement.
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
+            .replaceAll('x', function () {
+                return Math.trunc(Math.random() * 16).toString(16)
+            })
+            .replaceAll('y', function () {
+                return ((Math.trunc(Math.random() * 16) & 0x3) | 0x8).toString(16)
+            })
     }
 }

@@ -2,6 +2,18 @@
  * Controller for GUI event handling with modern JavaScript features
  */
 
+// Test electronAPI availability on load
+console.log('[Controller] Starting, electronAPI available:', !!globalThis.electronAPI);
+if (globalThis.electronAPI) {
+    console.log('[Controller] electronAPI.getAppPath:', globalThis.electronAPI.getAppPath());
+} else {
+    console.error('[Controller] electronAPI NOT AVAILABLE - file operations will fail!');
+}
+
+/**
+ * Controller for GUI event handling with modern JavaScript features
+ */
+
 // All events for gui components ("clicks, etc") will be hooked up here
 function registerComponents() {
   let currentgrid;

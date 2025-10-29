@@ -172,6 +172,55 @@ function getMitreTechniquesByTactic(tacticName) {
 }
 
 /**
+ * Add technique suggestions based on malware name and path
+ */
+function addMalwareTechniques(malware, suggestions) {
+    const name = (malware.text || '').toLowerCase();
+    const path = (malware.path_on_disk || '').toLowerCase();
+
+    if (name.includes('mimikatz')) {
+        suggestions.add('T1003.001'); // LSASS Memory
+        suggestions.add('T1558'); // Steal or Forge Kerberos Tickets
+    }
+    if (name.includes('cobalt') || name.includes('beacon')) {
+        suggestions.add('T1071.001'); // Web Protocols
+        suggestions.add('T1090'); // Proxy
+        suggestions.add('T1573'); // Encrypted Channel
+    }
+    if (name.includes('psexec')) {
+        suggestions.add('T1021.002'); // SMB/Windows Admin Shares
+        suggestions.add('T1569.002'); // Service Execution
+    }
+    if (name.includes('powershell') || path.includes('powershell')) {
+        suggestions.add('T1059.001'); // PowerShell
+    }
+    if (name.includes('cmd.exe') || name.includes('cmd ')) {
+        suggestions.add('T1059.003'); // Windows Command Shell
+    }
+}
+
+/**
+ * Add technique suggestions based on network indicators
+ */
+function addNetworkTechniques(indicator, suggestions) {
+    const context = (indicator.context || '').toLowerCase();
+
+    if (context.includes('c2') || context.includes('command')) {
+        suggestions.add('T1071'); // Application Layer Protocol
+        suggestions.add('T1573'); // Encrypted Channel
+    }
+    if (indicator.port === 443 || indicator.port === 80) {
+        suggestions.add('T1071.001'); // Web Protocols
+    }
+    if (indicator.port === 22) {
+        suggestions.add('T1021.004'); // SSH
+    }
+    if (indicator.port === 3389) {
+        suggestions.add('T1021.001'); // Remote Desktop Protocol
+    }
+}
+
+/**
  * Suggest techniques based on observed indicators
  */
 function suggestTechniquesFromIndicators() {
@@ -180,50 +229,14 @@ function suggestTechniquesFromIndicators() {
     // Check malware/tools for technique hints
     if (case_data.malware) {
         for (const malware of case_data.malware) {
-            const name = (malware.text || '').toLowerCase();
-            const path = (malware.path_on_disk || '').toLowerCase();
-            
-            // Common tool/technique associations
-            if (name.includes('mimikatz')) {
-                suggestions.add('T1003.001'); // LSASS Memory
-                suggestions.add('T1558'); // Steal or Forge Kerberos Tickets
-            }
-            if (name.includes('cobalt') || name.includes('beacon')) {
-                suggestions.add('T1071.001'); // Web Protocols
-                suggestions.add('T1090'); // Proxy
-                suggestions.add('T1573'); // Encrypted Channel
-            }
-            if (name.includes('psexec')) {
-                suggestions.add('T1021.002'); // SMB/Windows Admin Shares
-                suggestions.add('T1569.002'); // Service Execution
-            }
-            if (name.includes('powershell') || path.includes('powershell')) {
-                suggestions.add('T1059.001'); // PowerShell
-            }
-            if (name.includes('cmd.exe') || name.includes('cmd ')) {
-                suggestions.add('T1059.003'); // Windows Command Shell
-            }
+            addMalwareTechniques(malware, suggestions);
         }
     }
     
     // Check network indicators for C2 patterns
     if (case_data.network_indicators) {
         for (const indicator of case_data.network_indicators) {
-            const context = (indicator.context || '').toLowerCase();
-            
-            if (context.includes('c2') || context.includes('command')) {
-                suggestions.add('T1071'); // Application Layer Protocol
-                suggestions.add('T1573'); // Encrypted Channel
-            }
-            if (indicator.port === 443 || indicator.port === 80) {
-                suggestions.add('T1071.001'); // Web Protocols
-            }
-            if (indicator.port === 22) {
-                suggestions.add('T1021.004'); // SSH
-            }
-            if (indicator.port === 3389) {
-                suggestions.add('T1021.001'); // Remote Desktop Protocol
-            }
+            addNetworkTechniques(indicator, suggestions);
         }
     }
     
@@ -241,7 +254,18 @@ function getMitreTechniquesForDropdown() {
     }));
 }
 
-// Auto-load on startup (if in browser context)
-if (typeof globalThis.window !== 'undefined') {
-    globalThis.window.addEventListener('load', loadMitreAttackData);
+// Auto-load on window load event with retry logic
+if (globalThis.window !== undefined) {
+    // Wait for both window load AND electronAPI to be available
+    const attemptLoad = () => {
+        if (globalThis.window.electronAPI) {
+            console.log('[MITRE] electronAPI available, loading MITRE data');
+            loadMitreAttackData();
+        } else {
+            console.warn('[MITRE] electronAPI not yet available, retrying in 100ms');
+            setTimeout(attemptLoad, 100);
+        }
+    };
+
+    globalThis.window.addEventListener('load', attemptLoad);
 }

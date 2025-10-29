@@ -234,7 +234,7 @@ function openCasePopup() {
  */
 function openMispAddMalwarePopup(recid) {
     const filename = w2ui.grd_malware.get(recid).text
-    const path= w2ui.grd_malware.get(recid).path_on_disk
+    let path= w2ui.grd_malware.get(recid).path_on_disk
 
     if (!path) path = ""
 
@@ -300,8 +300,6 @@ function openMispAddNetworkPopup(recid) { // Network MISP integration
     const ip = w2ui.grd_network.get(recid).ip
     const port = w2ui.grd_network.get(recid).port
     const notes = w2ui.grd_network.get(recid).context
-
-    const ip_port = ip + "|" + port
 
     const records = []
 
@@ -375,6 +373,55 @@ function openMispAddNetworkPopup(recid) { // Network MISP integration
 ///////////////////////////////
 
 /**
+ * Get CSS class name for event type
+ * @param {string} eventType - The event type
+ * @returns {string} - CSS class name
+ */
+function getEventTypeClassName(eventType) {
+    const classMap = {
+        "EventLog": "log",
+        "File": "file",
+        "Human": "human",
+        "Engagement": "engagement",
+        "Lateral Movement": "lateral",
+        "Exfil": "exfil",
+        "Tanium Trace": "tanium",
+        "Malware": "malware",
+        "eMail": "email",
+        "Misc": "misc"
+    };
+    return classMap[eventType] || "";
+}
+
+/**
+ * Format host name, return N/A if empty
+ * @param {string} host - Host name
+ * @returns {string} - Formatted host name
+ */
+function formatHost(host) {
+    return host === "" ? "N/A" : host;
+}
+
+/**
+ * Format systems string based on direction
+ * @param {string} host - Target host
+ * @param {string} sourceHost - Source host
+ * @param {string} direction - Direction indicator
+ * @returns {string} - Formatted systems string
+ */
+function formatSystems(host, sourceHost, direction) {
+    const formattedHost = formatHost(host);
+    const formattedSource = formatHost(sourceHost);
+
+    if (direction === "<-") {
+        return formattedHost + " ← " + formattedSource;
+    } else if (direction === "->") {
+        return formattedHost + " → " + formattedSource;
+    }
+    return formattedHost + " | " + formattedSource;
+}
+
+/**
  * Create Dataset for vis.js timeline view
  * @param tl - timeline object
  * @returns {Array} - vis.js object
@@ -383,90 +430,23 @@ function timeline2vis(tl){
     const vis_array=[]
 
     for(const item of tl) {
-        const visual = item.visual;
-        if (!visual) {
+        if (!item.visual || !item.date_time) {
             continue;
         }
-        const event_data = item.event_data;
-        const start = item.date_time;
 
-        if (!start) {
-            continue;
-        } // can't display something without timestamp in a timeline
+        const classname = getEventTypeClassName(item.event_type);
+        const systems = formatSystems(item.event_host, item.event_source_host, item.direction);
+        const eventTypeLabel = item.event_type ? "<b>[" + item.event_type + "]</b> " : "";
 
-        let classname = ""
-
-        if (item.event_type == "EventLog") {     // Event type styling configuration
-            classname = "log"
-        }
-        else if (item.event_type == "File") {
-            classname = "file"
-        }
-        else if (item.event_type == "Human") {
-            classname = "human"
-        }
-        else if (item.event_type == "Engagement") {
-            classname = "engagement"
-        }
-        else if (item.event_type == "Lateral Movement") {
-            classname = "lateral"
-        }
-        else if (item.event_type == "Exfil") {
-            classname = "exfil"
-        }
-        else if (item.event_type == "Tanium Trace") {
-            classname = "tanium"
-        }
-        else if (item.event_type == "Malware") {
-            classname = "malware"
-        }
-        else if (item.event_type == "eMail") {
-            classname = "email"
-        }
-        else if (item.event_type == "Misc") {
-            classname = "misc"
-        }
-
-        let host;
-        if (item.event_host == "") {
-            host = "N/A"
-        } else {
-            host = item.event_host
-        }
-        let source_host;
-        if (item.event_source_host == "") {
-            source_host = "N/A"
-        } else {
-            source_host = item.event_source_host
-        }
-
-        let systems;
-        if (item.direction == "<-") {
-            systems = host + " ← " + source_host
-        } else if (item.direction == "->") {
-            systems = host + " → " + source_host
-        } else {
-            systems = host + " | " + source_host
-        }
-
-        let event_type;
-        if (item.event_type) {
-            event_type = "<b>[" + item.event_type + "]</b> "
-        } else {
-            event_type = ""
-        }
-
-        vis_array.push(
-            {
-                id: vis_array.length,
-                content: event_type + systems + "<br><small>" + event_data + "</small>",
-                start: start.toString(),
-                className: classname
-            }
-        )
+        vis_array.push({
+            id: vis_array.length,
+            content: eventTypeLabel + systems + "<br><small>" + item.event_data + "</small>",
+            start: item.date_time.toString(),
+            className: classname
+        });
     }
 
-    return vis_array
+    return vis_array;
 }
 
 /**
@@ -533,130 +513,116 @@ function getHostType(systems, target_host) {
 }
 
 /**
+ * Check if timeline item should be included
+ * @param timelineItem
+ * @returns {boolean}
+ */
+function shouldIncludeTimelineItem(timelineItem) {
+    if (!timelineItem.event_host || !timelineItem.event_source_host) {
+        return false;
+    }
+    return timelineItem.visual && timelineItem.visual !== 0;
+}
+
+/**
+ * Add or get host index
+ * @param host - host name
+ * @param hosts - array of hosts
+ * @param types - array of types
+ * @param systems - systems data
+ * @returns {number} - index of host
+ */
+function addOrGetHostIndex(host, hosts, types, systems) {
+    let idx = hosts.indexOf(host);
+    if (idx === -1) {
+        hosts.push(host);
+        types.push(getHostType(systems, host));
+        idx = hosts.length - 1;
+    }
+    return idx;
+}
+
+/**
+ * Get color for event type
+ * @param eventType
+ * @returns {string}
+ */
+function getEventTypeColor(eventType) {
+    const colorMap = {
+        "EventLog": "limegreen",
+        "File": "gold",
+        "Human": "palevioletred",
+        "Engagement": "lightskyblue",
+        "Lateral Movement": "lightseagreen",
+        "Exfil": "plum",
+        "Tanium Trace": "palevioletred",
+        "Malware": "firebrick",
+        "eMail": "dodgerblue",
+        "Misc": "darksalmon",
+        "C2": "lightgrey"
+    };
+    return colorMap[eventType] || "#cccccc";
+}
+
+/**
+ * Create edge entry for timeline item
+ * @param timelineItem
+ * @param source
+ * @param destination
+ * @returns {object}
+ */
+function createEdgeEntry(timelineItem, source, destination) {
+    return {
+        from: source,
+        to: destination,
+        arrows: {
+            enabled: true,
+            type: 'vee',
+            to: { enabled: true }
+        },
+        value: 1,
+        smooth: "discrete",
+        length: 300,
+        color: {
+            color: getEventTypeColor(timelineItem.event_type)
+        },
+        title: "<center><b>[" + timelineItem.event_type + "]</b> " + timelineItem.date_time + "<br><small>" + timelineItem.event_data + "</small></center>"
+    };
+}
+
+/**
  * Generates the data object for vis.js
  * @param data
  * @returns {{nodes: Array, edges: Array}|*}
  */
 function getLateralMovements(data){
-    const nodes = []
-    const edges = []
-
-    const hosts = []      // Stores the label for host i-th
-    const types = []      // Stores the type of host i-th
-
+    const nodes = [];
+    const edges = [];
+    const hosts = [];
+    const types = [];
 
     for (const timelineItem of data.timeline) {
-        // Only add when both hosts need to be set
-        if (timelineItem.event_host == null || timelineItem.event_source_host == null || timelineItem.event_host == "" || timelineItem.event_source_host == "") {
+        if (!shouldIncludeTimelineItem(timelineItem)) {
             continue;
         }
 
-        //only show if visual is activated
-        if(!timelineItem.visual || timelineItem.visual ==0) continue;
+        const idx1 = addOrGetHostIndex(timelineItem.event_host, hosts, types, data.systems);
+        const idx2 = addOrGetHostIndex(timelineItem.event_source_host, hosts, types, data.systems);
 
-        // Add hosts
-        // ---------
+        const [source, destination] = timelineItem.direction === "->" ? [idx1, idx2] : [idx2, idx1];
 
-        // Add host 1
-        const host1 = timelineItem.event_host
-        let idx1 = hosts.indexOf(host1)
-
-        if (idx1 == -1){
-            hosts.push(host1)
-            types.push(getHostType(data.systems, host1))
-            idx1 = hosts.length - 1
-        }
-
-        // Add host 2
-        const host2 = timelineItem.event_source_host
-        let idx2 = hosts.indexOf(host2)
-        if (idx2 == -1){
-            hosts.push(host2)
-            types.push(getHostType(data.systems, host2))
-            idx2 = hosts.length - 1
-        }
-
-        // Figure out direction
-        const direction = timelineItem.direction
-
-        let source = 0;
-        let destination = 0;
-        if (direction == "->") {
-            //from 1 > 2
-            source = idx1
-            destination = idx2
-        }
-        else {
-            //from 2 > 1
-            source = idx2
-            destination = idx1
-        }
-
-        // Add connections
-        // --------------
-
-        // color lateral and exfil differently
-        let color = "#cccccc"
-
-        if (timelineItem.event_type == "EventLog") {
-            color = "limegreen"
-        } else if (timelineItem.event_type == "File") {
-            color = "gold"
-        } else if (timelineItem.event_type == "Human") {
-            color = "palevioletred"
-        } else if (timelineItem.event_type == "Engagement") {
-            color = "lightskyblue"
-        } else if (timelineItem.event_type == "Lateral Movement") {
-            color = "lightseagreen"
-        } else if (timelineItem.event_type == "Exfil") {
-            color = "plum"
-        } else if (timelineItem.event_type == "Tanium Trace") {
-            color = "palevioletred"
-        } else if (timelineItem.event_type == "Malware") {
-            color = "firebrick"
-        } else if (timelineItem.event_type == "eMail") {
-            color = "dodgerblue"
-        } else if (timelineItem.event_type == "Misc") {
-            color = "darksalmon"
-        } else if (timelineItem.event_type == "C2") {
-            color = "lightgrey"
-        }
-
-        const entry = {
-            from: source,
-            to: destination,
-            arrows: {
-                enabled: true,
-                type: 'vee',
-                to: { enabled: true }
-            },
-            value: 1,
-            smooth: "discrete",
-            length: 300,
-            color: {
-                color: color
-            },
-            title: "<center><b>[" + timelineItem.event_type + "]</b> " + timelineItem.date_time + "<br><small>" + timelineItem.event_data + "</small></center>"
-        }
-        edges.push(entry)
+        edges.push(createEdgeEntry(timelineItem, source, destination));
     }
 
-    // Build nodes array
-    for (let i = 0; i < hosts.length;i++){
-        const entry = {
+    for (let i = 0; i < hosts.length; i++) {
+        nodes.push({
             id: i,
             label: "\n" + hosts[i] + "\n" + getHostIP(data.systems, hosts[i]),
             group: types[i]
-        }
-        nodes.push(entry)
+        });
     }
 
-    const result = {
-        nodes: nodes,
-        edges:edges
-    }
-
-    return result
+    return { nodes, edges };
 }
 
 /**
@@ -784,7 +750,8 @@ function showLateralMovement(){
             }
         }
 
-        new vis.Network(container, data, options);
+        // Create and render the network visualization
+        const network = new vis.Network(container, data, options);
     }
 }
 
@@ -872,8 +839,6 @@ function openImportPopup(fields,content,import_fieldset) {
 
     const records = []
 
-    const firstline = CSVtoArrayEasy(content[0]) //need that for mapping and can't use it for the editable items as w2ui will mess with it
-
 
     for(const field of fields){
         records.push({recid:records.length+1, csv:"", grid:field,fieldname:import_fieldset[records.length]})
@@ -918,8 +883,8 @@ function openImportPopup(fields,content,import_fieldset) {
  * @param grid - w2ui grid object
  */
 function writeprotect_grid(grid) {
-    for (let i = 0; i < grid.columns.length; i++){ //disable inline editing for all columns of the grid
-        grid.columns[i].editable = null
+    for (const column of grid.columns){ //disable inline editing for all columns of the grid
+        column.editable = null
     }
     grid.refresh()
 }
@@ -942,8 +907,8 @@ function writeenable_grid(grid, template){
  */
 function deactivate_all_context_items(menu){
     if (menu == null) return;
-    for (let i = 0; i < menu.length; i++){
-        menu[i].disabled = true
+    for (const item of menu){
+        item.disabled = true
     }
 }
 
@@ -953,7 +918,7 @@ function deactivate_all_context_items(menu){
  */
 function activate_all_context_items(menu){
     if (menu == null) return;
-    for (let i = 0; i < menu.length; i++){
-        menu[i].disabled = false
+    for (const item of menu){
+        item.disabled = false
     }
 }
